@@ -38,19 +38,21 @@ anomaly_type = st.sidebar.selectbox(
 )
 
 # Filter anomalies
-filtered = anomalies[anomalies["mpxn"] == mpxn].copy()
+filtered_by_mpxn_utility = anomalies[anomalies["mpxn"] == mpxn].copy()
 if utility != "both":
-    filtered = filtered[filtered["utility"] == utility]
+    filtered_by_mpxn_utility = filtered_by_mpxn_utility[filtered_by_mpxn_utility["utility"] == utility]
+
+filtered = filtered_by_mpxn_utility.copy()
 if anomaly_type != "all":
     filtered = filtered[filtered["anomaly_type"] == anomaly_type]
 
-# Summary cards
+# Summary cards — always show totals for selected MPxN + utility, not affected by type filter
 st.title(f"Energy Anomaly Monitor — {mpxn}")
 
 col1, col2, col3 = st.columns(3)
-col1.metric("Spikes",     int((filtered["anomaly_type"] == "spike").sum()))
-col2.metric("Prolonged",  int((filtered["anomaly_type"] == "prolonged").sum()))
-col3.metric("Flat-lines", int((filtered["anomaly_type"] == "flat_line").sum()))
+col1.metric("Spikes",     int((filtered_by_mpxn_utility["anomaly_type"] == "spike").sum()))
+col2.metric("Prolonged",  int((filtered_by_mpxn_utility["anomaly_type"] == "prolonged").sum()))
+col3.metric("Flat-lines", int((filtered_by_mpxn_utility["anomaly_type"] == "flat_line").sum()))
 
 # Timeline chart
 st.subheader("Consumption timeline")
@@ -81,7 +83,7 @@ for u, u_daily in daily.groupby("utility"):
         line=dict(color=UTILITY_COLOURS.get(u, "#888888")),
     ))
 
-y_max = daily["value"].max() if not daily.empty else 1.0
+y_max = max(daily["value"].max(), 1.0) if not daily.empty else 1.0
 for atype, agroup in filtered.groupby("anomaly_type"):
     fig.add_trace(go.Scatter(
         x=agroup["timestamp"].dt.date,
