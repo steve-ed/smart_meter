@@ -133,3 +133,36 @@ def test_flatline_does_not_flag_47_zeros():
     group = make_group(normal + zeros + [1.0])
     events = _detect_flatlines(group, "TEST", "electricity")
     assert len(events) == 0
+
+
+def test_detect_anomalies_returns_correct_columns():
+    baseline = [1.0] * (BASELINE_DAYS * _HALFHOURS_PER_DAY)
+    df = make_group(baseline + [10.0])
+    result = detect_anomalies(df)
+    assert set(result.columns) == {
+        "mpxn", "utility", "anomaly_type", "timestamp", "value", "baseline", "ratio"
+    }
+
+
+def test_detect_anomalies_returns_empty_dataframe_when_no_anomalies():
+    df = make_group([1.0] * 100)
+    result = detect_anomalies(df)
+    assert isinstance(result, pd.DataFrame)
+    assert len(result) == 0
+
+
+def test_detect_anomalies_handles_multiple_mpxns():
+    baseline = [1.0] * (BASELINE_DAYS * _HALFHOURS_PER_DAY)
+    df1 = make_group(baseline + [10.0], mpxn="AAA")
+    df2 = make_group(baseline + [10.0], mpxn="BBB")
+    df = pd.concat([df1, df2], ignore_index=True)
+    result = detect_anomalies(df)
+    assert set(result["mpxn"].unique()) == {"AAA", "BBB"}
+    assert len(result) == 2
+
+
+def test_detect_anomalies_sorted_by_timestamp():
+    baseline = [1.0] * (BASELINE_DAYS * _HALFHOURS_PER_DAY)
+    df = make_group(baseline + [10.0, 1.0, 10.0])
+    result = detect_anomalies(df)
+    assert list(result["timestamp"]) == sorted(result["timestamp"])
