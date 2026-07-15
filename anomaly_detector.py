@@ -51,8 +51,8 @@ def _detect_spikes(group: pd.DataFrame, mpxn: str, utility: str) -> list:
 
 
 def _detect_prolonged(group: pd.DataFrame, mpxn: str, utility: str) -> list:
-    pass
+    return []
 
 
 def _detect_flatlines(group: pd.DataFrame, mpxn: str, utility: str) -> list:
-    pass
+    return []
