@@ -51,7 +51,39 @@ def _detect_spikes(group: pd.DataFrame, mpxn: str, utility: str) -> list:
 
 
 def _detect_prolonged(group: pd.DataFrame, mpxn: str, utility: str) -> list:
-    return []
+    daily = group.set_index("timestamp")["value"].resample("D").sum()
+    baseline = daily.rolling(BASELINE_DAYS, min_periods=BASELINE_DAYS // 2).mean()
+    elevated = (daily > baseline * PROLONGED_MULTIPLIER) & baseline.notna()
+
+    events = []
+    run_start = None
+    run_len = 0
+    for date, is_elevated in elevated.items():
+        if is_elevated:
+            if run_start is None:
+                run_start = date
+            run_len += 1
+        else:
+            if run_len >= PROLONGED_MIN_DAYS:
+                b = float(baseline[run_start])
+                v = float(daily[run_start])
+                events.append({
+                    "mpxn": mpxn, "utility": utility, "anomaly_type": "prolonged",
+                    "timestamp": pd.Timestamp(run_start),
+                    "value": round(v, 4), "baseline": round(b, 4), "ratio": round(v / b, 2),
+                })
+            run_start = None
+            run_len = 0
+
+    if run_len >= PROLONGED_MIN_DAYS:
+        b = float(baseline[run_start])
+        v = float(daily[run_start])
+        events.append({
+            "mpxn": mpxn, "utility": utility, "anomaly_type": "prolonged",
+            "timestamp": pd.Timestamp(run_start),
+            "value": round(v, 4), "baseline": round(b, 4), "ratio": round(v / b, 2),
+        })
+    return events
 
 
 def _detect_flatlines(group: pd.DataFrame, mpxn: str, utility: str) -> list:

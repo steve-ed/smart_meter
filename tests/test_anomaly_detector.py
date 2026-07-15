@@ -53,3 +53,29 @@ def test_spike_excludes_zeros_from_gas_baseline():
     group = make_group(baseline + [20.0], utility="gas")
     events = _detect_spikes(group, "TEST", "gas")
     assert len(events) == 1
+
+
+def test_prolonged_detects_three_consecutive_elevated_days():
+    # 28 days baseline at 1.0/HH (48/day), then 4 days at 3.0/HH (144/day = 3× baseline daily)
+    baseline = [1.0] * (BASELINE_DAYS * _HALFHOURS_PER_DAY)
+    elevated = [3.0] * (4 * _HALFHOURS_PER_DAY)
+    group = make_group(baseline + elevated)
+    events = _detect_prolonged(group, "TEST", "electricity")
+    assert len(events) == 1
+    assert events[0]["anomaly_type"] == "prolonged"
+    assert events[0]["ratio"] >= 2.0
+
+
+def test_prolonged_does_not_flag_two_consecutive_elevated_days():
+    baseline = [1.0] * (BASELINE_DAYS * _HALFHOURS_PER_DAY)
+    elevated = [3.0] * (2 * _HALFHOURS_PER_DAY)
+    group = make_group(baseline + elevated)
+    events = _detect_prolonged(group, "TEST", "electricity")
+    assert len(events) == 0
+
+
+def test_prolonged_does_not_flag_with_insufficient_baseline():
+    # Only 10 days of data — below min_periods for the rolling window
+    group = make_group([1.0] * (10 * _HALFHOURS_PER_DAY))
+    events = _detect_prolonged(group, "TEST", "electricity")
+    assert len(events) == 0
