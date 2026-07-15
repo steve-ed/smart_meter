@@ -88,3 +88,39 @@ def test_prolonged_detects_two_separate_runs():
     group = make_group(baseline + elevated + gap + elevated)
     events = _detect_prolonged(group, "TEST", "electricity")
     assert len(events) == 2
+
+
+def test_flatline_detects_24_consecutive_zero_hours():
+    # 24 hours = 48 half-hours of zeros, surrounded by non-zero readings
+    normal = [1.0] * _HALFHOURS_PER_DAY
+    zeros  = [0.0] * _HALFHOURS_PER_DAY   # exactly 24 hours
+    group = make_group(normal + zeros + [1.0] * 10)
+    events = _detect_flatlines(group, "TEST", "electricity")
+    assert len(events) == 1
+    assert events[0]["anomaly_type"] == "flat_line"
+    assert events[0]["value"] == 0.0
+    assert events[0]["baseline"] is None
+
+
+def test_flatline_does_not_flag_short_zero_run():
+    normal = [1.0] * _HALFHOURS_PER_DAY
+    zeros  = [0.0] * 10   # only 5 hours
+    group = make_group(normal + zeros + [1.0] * 10)
+    events = _detect_flatlines(group, "TEST", "electricity")
+    assert len(events) == 0
+
+
+def test_flatline_detects_run_at_end_of_series():
+    normal = [1.0] * _HALFHOURS_PER_DAY
+    zeros  = [0.0] * _HALFHOURS_PER_DAY
+    group = make_group(normal + zeros)
+    events = _detect_flatlines(group, "TEST", "electricity")
+    assert len(events) == 1
+
+
+def test_flatline_detects_multiple_separate_runs():
+    normal = [1.0] * _HALFHOURS_PER_DAY
+    zeros  = [0.0] * _HALFHOURS_PER_DAY
+    group = make_group(zeros + normal + zeros)
+    events = _detect_flatlines(group, "TEST", "electricity")
+    assert len(events) == 2

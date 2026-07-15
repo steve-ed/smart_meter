@@ -87,4 +87,28 @@ def _detect_prolonged(group: pd.DataFrame, mpxn: str, utility: str) -> list:
 
 
 def _detect_flatlines(group: pd.DataFrame, mpxn: str, utility: str) -> list:
-    return []
+    min_consecutive = FLATLINE_HOURS * 2  # hours to half-hours
+    events = []
+    run_start_idx = None
+    run_len = 0
+    for i, val in enumerate(group["value"]):
+        if val == 0.0:
+            if run_start_idx is None:
+                run_start_idx = i
+            run_len += 1
+        else:
+            if run_len >= min_consecutive:
+                events.append({
+                    "mpxn": mpxn, "utility": utility, "anomaly_type": "flat_line",
+                    "timestamp": group.at[run_start_idx, "timestamp"],
+                    "value": 0.0, "baseline": None, "ratio": None,
+                })
+            run_start_idx = None
+            run_len = 0
+    if run_len >= min_consecutive:
+        events.append({
+            "mpxn": mpxn, "utility": utility, "anomaly_type": "flat_line",
+            "timestamp": group.at[run_start_idx, "timestamp"],
+            "value": 0.0, "baseline": None, "ratio": None,
+        })
+    return events
