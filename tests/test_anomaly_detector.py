@@ -124,3 +124,12 @@ def test_flatline_detects_multiple_separate_runs():
     group = make_group(zeros + normal + zeros)
     events = _detect_flatlines(group, "TEST", "electricity")
     assert len(events) == 2
+
+
+def test_flatline_does_not_flag_47_zeros():
+    # 47 half-hours = 23.5 hours, one below the 24-hour threshold
+    normal = [1.0] * _HALFHOURS_PER_DAY
+    zeros  = [0.0] * 47
+    group = make_group(normal + zeros + [1.0])
+    events = _detect_flatlines(group, "TEST", "electricity")
+    assert len(events) == 0

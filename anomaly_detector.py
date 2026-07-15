@@ -91,10 +91,10 @@ def _detect_flatlines(group: pd.DataFrame, mpxn: str, utility: str) -> list:
     events = []
     run_start_idx = None
     run_len = 0
-    for i, val in enumerate(group["value"]):
-        if val == 0.0:
+    for idx, val in group["value"].items():
+        if val < 1e-9:
             if run_start_idx is None:
-                run_start_idx = i
+                run_start_idx = idx
             run_len += 1
         else:
             if run_len >= min_consecutive:
