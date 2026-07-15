@@ -63,7 +63,7 @@ def test_prolonged_detects_three_consecutive_elevated_days():
     events = _detect_prolonged(group, "TEST", "electricity")
     assert len(events) == 1
     assert events[0]["anomaly_type"] == "prolonged"
-    assert events[0]["ratio"] >= 2.0
+    assert events[0]["ratio"] == pytest.approx(2.8, rel=0.05)
 
 
 def test_prolonged_does_not_flag_two_consecutive_elevated_days():
@@ -79,3 +79,12 @@ def test_prolonged_does_not_flag_with_insufficient_baseline():
     group = make_group([1.0] * (10 * _HALFHOURS_PER_DAY))
     events = _detect_prolonged(group, "TEST", "electricity")
     assert len(events) == 0
+
+
+def test_prolonged_detects_two_separate_runs():
+    baseline = [1.0] * (BASELINE_DAYS * _HALFHOURS_PER_DAY)
+    elevated = [10.0] * (4 * _HALFHOURS_PER_DAY)
+    gap      = [1.0] * _HALFHOURS_PER_DAY
+    group = make_group(baseline + elevated + gap + elevated)
+    events = _detect_prolonged(group, "TEST", "electricity")
+    assert len(events) == 2
