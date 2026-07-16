@@ -1,7 +1,7 @@
 import pandas as pd
 from battery_simulator import simulate_day
 
-COST_PER_KWH_INSTALLED = 500        # £/kWh installed
+COST_PER_KWH_INSTALLED = 500        # GBP/kWh installed
 BATTERY_SIZES_KWH = [2, 5, 7, 10, 13, 15]
 ROUND_TRIP_EFFICIENCY = 0.90
 MAX_C_RATE = 0.5
@@ -59,9 +59,9 @@ def format_row(size, installed_cost, avg_daily_p, annual_gbp, payback, flagged):
     flag = " *" if flagged else "  "
     return (
         f"{size:>10} | "
-        f"£{installed_cost:>13,.0f} | "
+        f"GBP{installed_cost:>12,.0f} | "
         f"{avg_daily_p:>14.1f}p | "
-        f"£{annual_gbp:>12,.2f} | "
+        f"GBP{annual_gbp:>11,.2f} | "
         f"{payback:>11.1f}{flag}"
     )
 
@@ -75,8 +75,8 @@ def main():
     date_min = min(d for d, _, _ in days)
     date_max = max(d for d, _, _ in days)
 
-    print(f"Battery Size Analysis — MPAN {MPAN}")
-    print(f"Tariff: {off_peak}p off-peak / {peak}p peak  |  Installed cost: £{COST_PER_KWH_INSTALLED}/kWh")
+    print(f"Battery Size Analysis - MPAN {MPAN}")
+    print(f"Tariff: {off_peak}p off-peak / {peak}p peak  |  Installed cost: GBP{COST_PER_KWH_INSTALLED}/kWh")
     print(
         f"Days simulated: {len(days):,} ({date_min} to {date_max})  |  "
         f"Efficiency: {ROUND_TRIP_EFFICIENCY * 100:.0f}%  |  "
