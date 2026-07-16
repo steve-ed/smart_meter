@@ -92,12 +92,13 @@ def main():
         f"{'Installed Cost':>15} | "
         f"{'Avg Daily Saving':>16} | "
         f"{'Annual Saving':>14} | "
-        f"{'Payback (yrs)':>13}"
+        f"{'Payback (yrs)':>13} | "
+        f"{'High Rate (7yr)':>15}"
     )
     divider = (
         "-" * 10 + "-+-" + "-" * 11 + "-+-" + "-" * 15 + "-+-" +
         "-" * 14 + "-+-" + "-" * 15 + "-+-" + "-" * 16 + "-+-" +
-        "-" * 14 + "-+-" + "-" * 13
+        "-" * 14 + "-+-" + "-" * 13 + "-+-" + "-" * 15
     )
     lines.append(header)
     lines.append(divider)
@@ -111,7 +112,8 @@ def main():
         f"{'N/A':>15} | "
         f"{'N/A':>16} | "
         f"{'N/A':>14} | "
-        f"{'N/A':>13}"
+        f"{'N/A':>13} | "
+        f"{'N/A':>15}"
     )
     lines.append(divider)
 
@@ -137,6 +139,14 @@ def main():
         if flagged:
             any_flagged = True
 
+        # Peak rate required for 7-year payback, holding off-peak rate fixed
+        annual_displaced = total_displaced * 365 / len(days)
+        if annual_displaced > 0:
+            required_peak_p = (installed_cost / 7 * 100 / annual_displaced) + off_peak / ROUND_TRIP_EFFICIENCY
+            required_peak_str = f"{required_peak_p:>13.1f}p"
+        else:
+            required_peak_str = f"{'N/A':>14}"
+
         flag = " *" if flagged else "  "
         lines.append(
             f"{size:>10} | "
@@ -146,7 +156,8 @@ def main():
             f"GBP{installed_cost:>12,.0f} | "
             f"{avg_daily_p:>14.1f}p | "
             f"GBP{annual_gbp:>11,.2f} | "
-            f"{payback:>11.1f}{flag}"
+            f"{payback:>11.1f}{flag} | "
+            f"{required_peak_str}"
         )
 
     if any_flagged:
