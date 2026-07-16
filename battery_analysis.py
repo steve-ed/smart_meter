@@ -110,11 +110,17 @@ def build_config_table(days, base_total, base_high, base_low, off_peak, peak, co
         ]
         total_saving_p  = sum(r["daily_saving_p"]    for r in results)
         total_displaced = sum(r["peak_kwh_displaced"] for r in results)
-        total_charged   = sum(r["charge_cycled_kwh"]  for r in results)
 
-        grid_total = base_total - total_displaced + total_charged
+        # charge_needed is the off-peak grid draw that funded the discharge.
+        # charge_cycled_kwh from the simulator is overcounted (the per-day model
+        # recharges the battery in the late-evening off-peak after discharge, but
+        # resets SOC to min_soc next morning — double-counting that charge).
+        # Steady-state reality: only one charge cycle per day, costing delivered/rte.
+        charge_needed = total_displaced / rte
+
+        grid_total = base_total - total_displaced + charge_needed
         grid_high  = base_high  - total_displaced
-        grid_low   = base_low   + total_charged
+        grid_low   = base_low   + charge_needed
 
         avg_daily_p  = total_saving_p / len(days)
         annual_gbp   = avg_daily_p * 365 / 100
