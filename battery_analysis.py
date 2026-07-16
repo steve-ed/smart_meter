@@ -24,7 +24,9 @@ def load_data():
     # Build time-of-day → rate lookup (rates are constant across all dates)
     tariff_raw = pd.read_csv(f"{DATA_DIR}/tariff.csv")
     tariff_raw = tariff_raw[
-        (tariff_raw["mpan"] == int(MPAN)) & (tariff_raw["type"] == "unit_rate")
+        (tariff_raw["mpan"] == int(MPAN))
+        & (tariff_raw["energy_type"] == "electricity")
+        & (tariff_raw["type"] == "unit_rate")
     ][["timestamp", "value"]].copy()
     tariff_raw["timestamp"] = pd.to_datetime(tariff_raw["timestamp"])
     tariff_raw["time_of_day"] = tariff_raw["timestamp"].dt.time
@@ -85,12 +87,12 @@ def main():
 
     header = (
         f"{'Size (kWh)':>10} | "
-        f"{'Installed Cost':>14} | "
+        f"{'Installed Cost':>15} | "
         f"{'Avg Daily Saving':>16} | "
         f"{'Annual Saving':>14} | "
         f"{'Payback (yrs)':>13}"
     )
-    divider = "-" * 10 + "-+-" + "-" * 14 + "-+-" + "-" * 16 + "-+-" + "-" * 14 + "-+-" + "-" * 13
+    divider = "-" * 10 + "-+-" + "-" * 15 + "-+-" + "-" * 16 + "-+-" + "-" * 14 + "-+-" + "-" * 13
     print(header)
     print(divider)
 
