@@ -89,16 +89,33 @@ def main():
     tariff = week["rate_p"].values
     net_grid = consumption + charge - discharge
 
-    fig, (ax1, ax2) = plt.subplots(
-        2, 1, figsize=(16, 8), sharex=True,
-        gridspec_kw={"height_ratios": [3, 1]}
+    fig, (ax0, ax1, ax2) = plt.subplots(
+        3, 1, figsize=(16, 11), sharex=True,
+        gridspec_kw={"height_ratios": [2, 2, 1]}
     )
     fig.suptitle(
         f"Meter 1 (MPAN {MPAN}) - Week 6-12 Jul 2026  |  5 kWh Battery Simulation",
         fontsize=13, fontweight="bold"
     )
 
-    # --- Panel 1: consumption and net grid draw ---
+    # --- Panel 0: raw consumption ---
+    ax0.step(ts, consumption, where="post", color="#209dd7", linewidth=1.2)
+    ax0.fill_between(ts, 0, consumption, step="post", color="#209dd7", alpha=0.25)
+    ax0_r = ax0.twinx()
+    ax0_r.step(ts, tariff, where="post", color="red", linewidth=1,
+               linestyle="--", alpha=0.6, label="Tariff")
+    ax0_r.set_ylabel("Tariff (p/kWh)", color="red", fontsize=10)
+    ax0_r.tick_params(axis="y", colors="red")
+    ax0_r.set_ylim(0, tariff.max() * 3)
+    ax0.set_ylabel("Energy (kWh / half-hour)", fontsize=10)
+    ax0.set_title("Actual Consumption", fontsize=10, loc="left")
+    y_max0 = np.percentile(consumption, 99) * 1.2
+    ax0.set_ylim(bottom=0, top=y_max0)
+    ax0.grid(True, alpha=0.25)
+    ax0.legend(["Consumption"], loc="upper left", fontsize=8)
+    ax0_r.legend(loc="upper right", fontsize=8)
+
+    # --- Panel 1: battery simulation ---
     ax1.step(ts, consumption, where="post", color="#209dd7", linewidth=1.5,
              label="Actual consumption", zorder=3)
     ax1.step(ts, net_grid, where="post", color="#753991", linewidth=1.5,
@@ -120,8 +137,9 @@ def main():
     ax1_r.set_ylim(0, tariff.max() * 3)
 
     ax1.set_ylabel("Energy (kWh / half-hour)", fontsize=10)
-    y_max = np.percentile(net_grid, 99) * 1.2
-    ax1.set_ylim(bottom=-0.05, top=y_max)
+    ax1.set_title("With Battery", fontsize=10, loc="left")
+    y_max1 = np.percentile(net_grid, 99) * 1.2
+    ax1.set_ylim(bottom=-0.05, top=y_max1)
     ax1.grid(True, alpha=0.25)
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax1_r.get_legend_handles_labels()
