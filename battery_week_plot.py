@@ -120,7 +120,8 @@ def main():
     ax1_r.set_ylim(0, tariff.max() * 3)
 
     ax1.set_ylabel("Energy (kWh / half-hour)", fontsize=10)
-    ax1.set_ylim(bottom=-0.05)
+    y_max = np.percentile(net_grid, 99) * 1.2
+    ax1.set_ylim(bottom=-0.05, top=y_max)
     ax1.grid(True, alpha=0.25)
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax1_r.get_legend_handles_labels()
