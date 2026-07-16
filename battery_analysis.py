@@ -63,6 +63,7 @@ HEADER = (
     f"{'Total (kWh)':>11} | "
     f"{'High Rate (kWh)':>15} | "
     f"{'Low Rate (kWh)':>14} | "
+    f"{'%HR':>6} | "
     f"{'Installed Cost':>15} | "
     f"{'Avg Daily Saving':>16} | "
     f"{'Annual Saving':>14} | "
@@ -71,7 +72,7 @@ HEADER = (
 )
 DIVIDER = (
     "-" * 10 + "-+-" + "-" * 11 + "-+-" + "-" * 15 + "-+-" +
-    "-" * 14 + "-+-" + "-" * 15 + "-+-" + "-" * 16 + "-+-" +
+    "-" * 14 + "-+-" + "-" * 6 + "-+-" + "-" * 15 + "-+-" + "-" * 16 + "-+-" +
     "-" * 14 + "-+-" + "-" * 13 + "-+-" + "-" * 15
 )
 
@@ -92,6 +93,7 @@ def build_config_table(days, base_total, base_high, base_low, off_peak, peak, co
         f"{base_total:>11.1f} | "
         f"{base_high:>15.1f} | "
         f"{base_low:>14.1f} | "
+        f"{base_high / base_total * 100:>5.1f}% | "
         f"{'N/A':>15} | "
         f"{'N/A':>16} | "
         f"{'N/A':>14} | "
@@ -135,6 +137,7 @@ def build_config_table(days, base_total, base_high, base_low, off_peak, peak, co
             f"{grid_total:>11.1f} | "
             f"{grid_high:>15.1f} | "
             f"{grid_low:>14.1f} | "
+            f"{grid_high / grid_total * 100:>5.1f}% | "
             f"GBP{installed_cost:>12,.0f} | "
             f"{avg_daily_p:>14.1f}p | "
             f"GBP{annual_gbp:>11,.2f} | "
