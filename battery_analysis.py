@@ -19,18 +19,21 @@ def load_data():
     ][["timestamp", "value"]].copy()
     consumption["timestamp"] = pd.to_datetime(consumption["timestamp"])
     consumption = consumption.rename(columns={"value": "consumption_kwh"})
-    # deduplicate: keep first reading per timestamp (consumption data has >100% completeness)
     consumption = consumption.drop_duplicates(subset="timestamp", keep="first")
 
-    tariff = pd.read_csv(f"{DATA_DIR}/tariff.csv")
-    tariff = tariff[
-        (tariff["mpan"] == int(MPAN)) & (tariff["type"] == "unit_rate")
+    # Build time-of-day → rate lookup (rates are constant across all dates)
+    tariff_raw = pd.read_csv(f"{DATA_DIR}/tariff.csv")
+    tariff_raw = tariff_raw[
+        (tariff_raw["mpan"] == int(MPAN)) & (tariff_raw["type"] == "unit_rate")
     ][["timestamp", "value"]].copy()
-    tariff["timestamp"] = pd.to_datetime(tariff["timestamp"])
-    tariff = tariff.rename(columns={"value": "rate_p"})
-    tariff = tariff.drop_duplicates(subset="timestamp", keep="first")
+    tariff_raw["timestamp"] = pd.to_datetime(tariff_raw["timestamp"])
+    tariff_raw["time_of_day"] = tariff_raw["timestamp"].dt.time
+    tod_rate = tariff_raw.groupby("time_of_day")["value"].first().to_dict()
 
-    merged = consumption.merge(tariff, on="timestamp", how="inner")
+    # Apply tariff by time-of-day to all consumption timestamps
+    consumption["time_of_day"] = consumption["timestamp"].dt.time
+    consumption["rate_p"] = consumption["time_of_day"].map(tod_rate)
+    merged = consumption.dropna(subset=["rate_p"]).drop(columns=["time_of_day"])
     merged["date"] = merged["timestamp"].dt.date
     return merged
 
