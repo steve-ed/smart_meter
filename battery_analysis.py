@@ -66,6 +66,9 @@ def format_row(size, installed_cost, avg_daily_p, annual_gbp, payback, flagged):
     )
 
 
+OUTPUT_FILE = "data/battery_analysis_results.txt"
+
+
 def main():
     merged = load_data()
     days = build_daily_arrays(merged)
@@ -75,15 +78,16 @@ def main():
     date_min = min(d for d, _, _ in days)
     date_max = max(d for d, _, _ in days)
 
-    print(f"Battery Size Analysis - MPAN {MPAN}")
-    print(f"Tariff: {off_peak}p off-peak / {peak}p peak  |  Installed cost: GBP{COST_PER_KWH_INSTALLED}/kWh")
-    print(
+    lines = []
+    lines.append(f"Battery Size Analysis - MPAN {MPAN}")
+    lines.append(f"Tariff: {off_peak}p off-peak / {peak}p peak  |  Installed cost: GBP{COST_PER_KWH_INSTALLED}/kWh")
+    lines.append(
         f"Days simulated: {len(days):,} ({date_min} to {date_max})  |  "
         f"Efficiency: {ROUND_TRIP_EFFICIENCY * 100:.0f}%  |  "
         f"Min SOC: {MIN_SOC * 100:.0f}%  |  "
         f"Max C-rate: {MAX_C_RATE}C"
     )
-    print()
+    lines.append("")
 
     header = (
         f"{'Size (kWh)':>10} | "
@@ -93,8 +97,8 @@ def main():
         f"{'Payback (yrs)':>13}"
     )
     divider = "-" * 10 + "-+-" + "-" * 15 + "-+-" + "-" * 16 + "-+-" + "-" * 14 + "-+-" + "-" * 13
-    print(header)
-    print(divider)
+    lines.append(header)
+    lines.append(divider)
 
     any_flagged = False
     for size in BATTERY_SIZES_KWH:
@@ -109,11 +113,17 @@ def main():
         flagged = payback > WARRANTY_YEARS
         if flagged:
             any_flagged = True
-        print(format_row(size, installed_cost, avg_daily_p, annual_gbp, payback, flagged))
+        lines.append(format_row(size, installed_cost, avg_daily_p, annual_gbp, payback, flagged))
 
     if any_flagged:
-        print()
-        print(f"* Payback exceeds {WARRANTY_YEARS}-year battery warranty period.")
+        lines.append("")
+        lines.append(f"* Payback exceeds {WARRANTY_YEARS}-year battery warranty period.")
+
+    output = "\n".join(lines)
+    print(output)
+    with open(OUTPUT_FILE, "w") as f:
+        f.write(output + "\n")
+    print(f"\nResults saved to {OUTPUT_FILE}")
 
 
 if __name__ == "__main__":

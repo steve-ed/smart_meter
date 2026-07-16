@@ -1,0 +1,14 @@
+Battery Size Analysis - MPAN 1234567891000
+Tariff: 8.78p off-peak / 16.29p peak  |  Installed cost: GBP500/kWh
+Days simulated: 245 (2024-01-01 to 2026-07-12)  |  Efficiency: 90%  |  Min SOC: 20%  |  Max C-rate: 0.5C
+
+Size (kWh) |  Installed Cost | Avg Daily Saving |  Annual Saving | Payback (yrs)
+-----------+-----------------+------------------+----------------+--------------
+         2 | GBP       1,000 |            8.5p | GBP      31.14 |        32.1 *
+         5 | GBP       2,500 |           18.1p | GBP      66.20 |        37.8 *
+         7 | GBP       3,500 |           22.6p | GBP      82.57 |        42.4 *
+        10 | GBP       5,000 |           26.2p | GBP      95.70 |        52.2 *
+        13 | GBP       6,500 |           27.3p | GBP      99.81 |        65.1 *
+        15 | GBP       7,500 |           27.8p | GBP     101.34 |        74.0 *
+
+* Payback exceeds 15-year battery warranty period.
