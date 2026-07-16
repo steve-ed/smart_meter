@@ -3,8 +3,10 @@ from battery_simulator import simulate_day
 
 COST_PER_KWH_INSTALLED = 500        # GBP/kWh installed
 BATTERY_SIZES_KWH = [2, 5, 7, 10, 13, 15]
-ROUND_TRIP_EFFICIENCY = 0.90
-MAX_C_RATE = 0.5
+BATTERY_CONFIGS = [
+    {"label": "0.5C", "max_c_rate": 0.5, "rte": 0.92},
+    {"label": "1C",   "max_c_rate": 1.0, "rte": 0.88},
+]
 MIN_SOC = 0.20
 WARRANTY_YEARS = 15
 
@@ -56,54 +58,35 @@ def build_daily_arrays(merged):
     return days
 
 
+HEADER = (
+    f"{'Size (kWh)':>10} | "
+    f"{'Total (kWh)':>11} | "
+    f"{'High Rate (kWh)':>15} | "
+    f"{'Low Rate (kWh)':>14} | "
+    f"{'Installed Cost':>15} | "
+    f"{'Avg Daily Saving':>16} | "
+    f"{'Annual Saving':>14} | "
+    f"{'Payback (yrs)':>13} | "
+    f"{'High Rate (7yr)':>15}"
+)
+DIVIDER = (
+    "-" * 10 + "-+-" + "-" * 11 + "-+-" + "-" * 15 + "-+-" +
+    "-" * 14 + "-+-" + "-" * 15 + "-+-" + "-" * 16 + "-+-" +
+    "-" * 14 + "-+-" + "-" * 13 + "-+-" + "-" * 15
+)
+
 OUTPUT_FILE = f"data/m{METER_NUMBER}-KWh-results.txt"
 
 
-def main():
-    merged = load_data()
-    days = build_daily_arrays(merged)
-
-    off_peak = min(merged["rate_p"])
-    peak = max(merged["rate_p"])
-    date_min = min(d for d, _, _ in days)
-    date_max = max(d for d, _, _ in days)
-
-    # Base consumption totals (no battery)
-    base_total    = sum(sum(c) for _, c, _ in days)
-    base_high     = sum(sum(c[i] for i in range(48) if t[i] >= peak)    for _, c, t in days)
-    base_low      = sum(sum(c[i] for i in range(48) if t[i] <= off_peak) for _, c, t in days)
+def build_config_table(days, base_total, base_high, base_low, off_peak, peak, config):
+    rte = config["rte"]
+    max_c_rate = config["max_c_rate"]
+    label = config["label"]
 
     lines = []
-    lines.append(f"Battery Size Analysis - MPAN {MPAN}")
-    lines.append(f"Tariff: {off_peak}p off-peak / {peak}p peak  |  Installed cost: GBP{COST_PER_KWH_INSTALLED}/kWh")
-    lines.append(
-        f"Days simulated: {len(days):,} ({date_min} to {date_max})  |  "
-        f"Efficiency: {ROUND_TRIP_EFFICIENCY * 100:.0f}%  |  "
-        f"Min SOC: {MIN_SOC * 100:.0f}%  |  "
-        f"Max C-rate: {MAX_C_RATE}C"
-    )
-    lines.append("")
-
-    header = (
-        f"{'Size (kWh)':>10} | "
-        f"{'Total (kWh)':>11} | "
-        f"{'High Rate (kWh)':>15} | "
-        f"{'Low Rate (kWh)':>14} | "
-        f"{'Installed Cost':>15} | "
-        f"{'Avg Daily Saving':>16} | "
-        f"{'Annual Saving':>14} | "
-        f"{'Payback (yrs)':>13} | "
-        f"{'High Rate (7yr)':>15}"
-    )
-    divider = (
-        "-" * 10 + "-+-" + "-" * 11 + "-+-" + "-" * 15 + "-+-" +
-        "-" * 14 + "-+-" + "-" * 15 + "-+-" + "-" * 16 + "-+-" +
-        "-" * 14 + "-+-" + "-" * 13 + "-+-" + "-" * 15
-    )
-    lines.append(header)
-    lines.append(divider)
-
-    # No-battery baseline row
+    lines.append(f"-- {label} Battery  (C-rate: {max_c_rate}C  |  Efficiency: {rte * 100:.0f}% RTE) --")
+    lines.append(HEADER)
+    lines.append(DIVIDER)
     lines.append(
         f"{'No battery':>10} | "
         f"{base_total:>11.1f} | "
@@ -115,17 +98,17 @@ def main():
         f"{'N/A':>13} | "
         f"{'N/A':>15}"
     )
-    lines.append(divider)
+    lines.append(DIVIDER)
 
     any_flagged = False
     for size in BATTERY_SIZES_KWH:
         results = [
-            simulate_day(c, t, size, ROUND_TRIP_EFFICIENCY, MAX_C_RATE, MIN_SOC)
+            simulate_day(c, t, size, rte, max_c_rate, MIN_SOC)
             for _, c, t in days
         ]
-        total_saving_p  = sum(r["daily_saving_p"]     for r in results)
-        total_displaced = sum(r["peak_kwh_displaced"]  for r in results)
-        total_charged   = sum(r["charge_cycled_kwh"]   for r in results)
+        total_saving_p  = sum(r["daily_saving_p"]    for r in results)
+        total_displaced = sum(r["peak_kwh_displaced"] for r in results)
+        total_charged   = sum(r["charge_cycled_kwh"]  for r in results)
 
         grid_total = base_total - total_displaced + total_charged
         grid_high  = base_high  - total_displaced
@@ -139,10 +122,9 @@ def main():
         if flagged:
             any_flagged = True
 
-        # Peak rate required for 7-year payback, holding off-peak rate fixed
         annual_displaced = total_displaced * 365 / len(days)
         if annual_displaced > 0:
-            required_peak_p = (installed_cost / 7 * 100 / annual_displaced) + off_peak / ROUND_TRIP_EFFICIENCY
+            required_peak_p = (installed_cost / 7 * 100 / annual_displaced) + off_peak / rte
             required_peak_str = f"{required_peak_p:>13.1f}p"
         else:
             required_peak_str = f"{'N/A':>14}"
@@ -163,6 +145,38 @@ def main():
     if any_flagged:
         lines.append("")
         lines.append(f"* Payback exceeds {WARRANTY_YEARS}-year battery warranty period.")
+
+    return lines
+
+
+def main():
+    merged = load_data()
+    days = build_daily_arrays(merged)
+
+    off_peak = min(merged["rate_p"])
+    peak = max(merged["rate_p"])
+    date_min = min(d for d, _, _ in days)
+    date_max = max(d for d, _, _ in days)
+
+    base_total = sum(sum(c) for _, c, _ in days)
+    base_high  = sum(sum(c[i] for i in range(48) if t[i] >= peak)     for _, c, t in days)
+    base_low   = sum(sum(c[i] for i in range(48) if t[i] <= off_peak) for _, c, t in days)
+
+    lines = []
+    lines.append(f"Battery Size Analysis - MPAN {MPAN}")
+    lines.append(
+        f"Tariff: {off_peak}p off-peak / {peak}p peak  |  "
+        f"Installed cost: GBP{COST_PER_KWH_INSTALLED}/kWh"
+    )
+    lines.append(
+        f"Days simulated: {len(days):,} ({date_min} to {date_max})  |  "
+        f"Min SOC: {MIN_SOC * 100:.0f}%"
+    )
+    lines.append("")
+
+    for config in BATTERY_CONFIGS:
+        lines.extend(build_config_table(days, base_total, base_high, base_low, off_peak, peak, config))
+        lines.append("")
 
     output = "\n".join(lines)
     print(output)

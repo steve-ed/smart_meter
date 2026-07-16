@@ -1,3 +1,16 @@
+# C-rate comparison (industry reference values used in this model)
+#
+# Feature              | 0.5C battery             | 1C battery
+# ---------------------+--------------------------+----------------------------
+# Continuous power     | 5 kW per 10 kWh          | 10 kW per 10 kWh
+# Cost                 | ~15-20% cheaper          | Higher
+# Efficiency           | approx 92% RTE           | approx 88% RTE
+# Heat generation      | Low                      | 4x cell heat, 3x system heat
+# Cooling needs        | Air cooling often enough | Needs strong cooling
+# Best for             | PV + tariffs             | Peak loads, backup
+# Longevity            | Better (lower stress)    | Depends on cooling quality
+
+
 def simulate_day(consumption_hh, tariff_hh, battery_capacity_kwh,
                  round_trip_efficiency=0.90, max_c_rate=0.5, min_soc=0.20):
     """
