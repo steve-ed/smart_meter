@@ -3,11 +3,14 @@ import os
 from datetime import date, timedelta
 
 import requests
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 PVGIS_URL = "https://re.jrc.ec.europa.eu/api/v5_2/seriescalc"
 
 
-def get_pvgis_profile(lat, lon, tilt=35, azimuth=180, year=2023, cache_dir="data"):
+def get_pvgis_profile(lat, lon, tilt=35, azimuth=180, year=2020, cache_dir="data"):
     """
     Fetch hourly PV generation from PVGIS for 1 kWp, interpolate to half-hourly.
 
@@ -33,7 +36,7 @@ def get_pvgis_profile(lat, lon, tilt=35, azimuth=180, year=2023, cache_dir="data
             "endyear": year,
             "loss": 14,
         }
-        r = requests.get(PVGIS_URL, params=params, timeout=30)
+        r = requests.get(PVGIS_URL, params=params, timeout=30, verify=False)
         r.raise_for_status()
         data = r.json()
         hourly = [{"time": row["time"], "P": row["P"]}
@@ -97,10 +100,10 @@ def get_measured_profile(data_dir, standard_yield=STANDARD_YIELD_KWH_PER_KWP):
     # Scale so annual generation = standard_yield per kWp
     scale = standard_yield / annual_total if annual_total > 0 else 0.0
 
-    # Build profile: {date(2023, m, d): list[48]} in kWh per kWp
+    # Build profile keyed by 2020 dates (leap year, so Feb 29 is valid)
     profile = {}
-    d = date(2023, 1, 1)
-    while d <= date(2023, 12, 31):
+    d = date(2020, 1, 1)
+    while d <= date(2020, 12, 31):
         profile[d] = [shape_dict.get((d.month, s), 0.0) * scale for s in range(48)]
         d += timedelta(days=1)
 

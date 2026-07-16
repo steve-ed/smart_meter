@@ -6,11 +6,11 @@ from unittest.mock import patch, MagicMock
 from solar_profile import get_pvgis_profile
 
 
-def _make_pvgis_response(slots_with_watts):
+def _make_pvgis_response(slots_with_watts, year=2020):
     """Build a minimal PVGIS hourly response. slots_with_watts: {(month, day, hour): watts}"""
     hourly = []
     for (month, day, hour), watts in slots_with_watts.items():
-        hourly.append({"time": f"2023{month:02d}{day:02d}:{hour:02d}10", "P": watts})
+        hourly.append({"time": f"{year}{month:02d}{day:02d}:{hour:02d}10", "P": watts})
     return {"outputs": {"hourly": hourly}}
 
 
@@ -30,10 +30,10 @@ def test_pvgis_profile_converts_watts_to_halfhourly_kwh_per_kwp(tmp_path):
         mock_get.return_value.json.return_value = mock_data
         mock_get.return_value.raise_for_status = MagicMock()
         profile = get_pvgis_profile(lat=51.5, lon=-0.1, tilt=35, azimuth=180,
-                                    year=2023, cache_dir=str(tmp_path))
+                                    year=2020, cache_dir=str(tmp_path))
 
-    assert date(2023, 6, 1) in profile
-    slots = profile[date(2023, 6, 1)]
+    assert date(2020, 6, 1) in profile
+    slots = profile[date(2020, 6, 1)]
     assert len(slots) == 48
     assert slots[0] == pytest.approx(0.0)    # midnight
     assert slots[1] == pytest.approx(0.0)    # 00:30
@@ -89,15 +89,15 @@ def test_measured_profile_structure_and_normalisation(tmp_path):
 
     profile = get_measured_profile(str(tmp_path))
 
-    assert all(d.year == 2023 for d in profile)
-    assert date(2023, 6, 15) in profile
-    assert len(profile[date(2023, 6, 15)]) == 48
-    assert profile[date(2023, 6, 15)][0] == pytest.approx(0.0)   # midnight
-    assert profile[date(2023, 6, 15)][16] > 0                     # 8am slot has generation
+    assert all(d.year == 2020 for d in profile)
+    assert date(2020, 6, 15) in profile
+    assert len(profile[date(2020, 6, 15)]) == 48
+    assert profile[date(2020, 6, 15)][0] == pytest.approx(0.0)   # midnight
+    assert profile[date(2020, 6, 15)][16] > 0                     # 8am slot has generation
 
-    days_in_month = {1:31, 2:28, 3:31, 4:30, 5:31, 6:30, 7:31, 8:31, 9:30, 10:31, 11:30, 12:31}
+    days_in_month = {1:31, 2:29, 3:31, 4:30, 5:31, 6:30, 7:31, 8:31, 9:30, 10:31, 11:30, 12:31}
     annual = sum(
-        sum(profile[date(2023, m, 1)]) * days_in_month[m]
+        sum(profile[date(2020, m, 1)]) * days_in_month[m]
         for m in range(1, 13)
     )
     assert annual == pytest.approx(900.0, rel=0.05)
