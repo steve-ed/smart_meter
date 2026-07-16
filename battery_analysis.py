@@ -9,6 +9,7 @@ MIN_SOC = 0.20
 WARRANTY_YEARS = 15
 
 MPAN = "1234567891000"
+METER_NUMBER = 1
 DATA_DIR = "data"
 
 
@@ -66,7 +67,7 @@ def format_row(size, installed_cost, avg_daily_p, annual_gbp, payback, flagged):
     )
 
 
-OUTPUT_FILE = "data/battery_analysis_results.txt"
+OUTPUT_FILE = f"data/m{METER_NUMBER}-KWh-results.txt"
 
 
 def main():
