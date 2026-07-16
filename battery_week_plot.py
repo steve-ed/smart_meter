@@ -9,10 +9,15 @@ BATTERY_CAPACITY = 5.0
 ROUND_TRIP_EFFICIENCY = 0.90
 MAX_C_RATE = 0.5
 MIN_SOC = 0.20
-OUTPUT_FILE = "data/battery_week_plot.png"
+METER_NUMBER = 1
 
 WEEK_START = pd.Timestamp("2026-07-06")
 WEEK_END   = pd.Timestamp("2026-07-12")
+
+WEEK_NUMBER = WEEK_START.isocalendar()[1]
+OUTPUT_FILE = (
+    f"data/m{METER_NUMBER}-{int(BATTERY_CAPACITY)}KW-wk{WEEK_NUMBER}.png"
+)
 
 
 def load_week():
