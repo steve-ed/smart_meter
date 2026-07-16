@@ -56,17 +56,6 @@ def build_daily_arrays(merged):
     return days
 
 
-def format_row(size, installed_cost, avg_daily_p, annual_gbp, payback, flagged):
-    flag = " *" if flagged else "  "
-    return (
-        f"{size:>10} | "
-        f"GBP{installed_cost:>12,.0f} | "
-        f"{avg_daily_p:>14.1f}p | "
-        f"GBP{annual_gbp:>11,.2f} | "
-        f"{payback:>11.1f}{flag}"
-    )
-
-
 OUTPUT_FILE = f"data/m{METER_NUMBER}-KWh-results.txt"
 
 
@@ -78,6 +67,11 @@ def main():
     peak = max(merged["rate_p"])
     date_min = min(d for d, _, _ in days)
     date_max = max(d for d, _, _ in days)
+
+    # Base consumption totals (no battery)
+    base_total    = sum(sum(c) for _, c, _ in days)
+    base_high     = sum(sum(c[i] for i in range(48) if t[i] >= peak)    for _, c, t in days)
+    base_low      = sum(sum(c[i] for i in range(48) if t[i] <= off_peak) for _, c, t in days)
 
     lines = []
     lines.append(f"Battery Size Analysis - MPAN {MPAN}")
@@ -92,29 +86,68 @@ def main():
 
     header = (
         f"{'Size (kWh)':>10} | "
+        f"{'Total (kWh)':>11} | "
+        f"{'High Rate (kWh)':>15} | "
+        f"{'Low Rate (kWh)':>14} | "
         f"{'Installed Cost':>15} | "
         f"{'Avg Daily Saving':>16} | "
         f"{'Annual Saving':>14} | "
         f"{'Payback (yrs)':>13}"
     )
-    divider = "-" * 10 + "-+-" + "-" * 15 + "-+-" + "-" * 16 + "-+-" + "-" * 14 + "-+-" + "-" * 13
+    divider = (
+        "-" * 10 + "-+-" + "-" * 11 + "-+-" + "-" * 15 + "-+-" +
+        "-" * 14 + "-+-" + "-" * 15 + "-+-" + "-" * 16 + "-+-" +
+        "-" * 14 + "-+-" + "-" * 13
+    )
     lines.append(header)
+    lines.append(divider)
+
+    # No-battery baseline row
+    lines.append(
+        f"{'No battery':>10} | "
+        f"{base_total:>11.1f} | "
+        f"{base_high:>15.1f} | "
+        f"{base_low:>14.1f} | "
+        f"{'N/A':>15} | "
+        f"{'N/A':>16} | "
+        f"{'N/A':>14} | "
+        f"{'N/A':>13}"
+    )
     lines.append(divider)
 
     any_flagged = False
     for size in BATTERY_SIZES_KWH:
-        total_saving_p = sum(
-            simulate_day(c, t, size, ROUND_TRIP_EFFICIENCY, MAX_C_RATE, MIN_SOC)["daily_saving_p"]
+        results = [
+            simulate_day(c, t, size, ROUND_TRIP_EFFICIENCY, MAX_C_RATE, MIN_SOC)
             for _, c, t in days
-        )
-        avg_daily_p = total_saving_p / len(days)
-        annual_gbp = avg_daily_p * 365 / 100
+        ]
+        total_saving_p  = sum(r["daily_saving_p"]     for r in results)
+        total_displaced = sum(r["peak_kwh_displaced"]  for r in results)
+        total_charged   = sum(r["charge_cycled_kwh"]   for r in results)
+
+        grid_total = base_total - total_displaced + total_charged
+        grid_high  = base_high  - total_displaced
+        grid_low   = base_low   + total_charged
+
+        avg_daily_p  = total_saving_p / len(days)
+        annual_gbp   = avg_daily_p * 365 / 100
         installed_cost = size * COST_PER_KWH_INSTALLED
         payback = installed_cost / annual_gbp if annual_gbp > 0 else float("inf")
         flagged = payback > WARRANTY_YEARS
         if flagged:
             any_flagged = True
-        lines.append(format_row(size, installed_cost, avg_daily_p, annual_gbp, payback, flagged))
+
+        flag = " *" if flagged else "  "
+        lines.append(
+            f"{size:>10} | "
+            f"{grid_total:>11.1f} | "
+            f"{grid_high:>15.1f} | "
+            f"{grid_low:>14.1f} | "
+            f"GBP{installed_cost:>12,.0f} | "
+            f"{avg_daily_p:>14.1f}p | "
+            f"GBP{annual_gbp:>11,.2f} | "
+            f"{payback:>11.1f}{flag}"
+        )
 
     if any_flagged:
         lines.append("")
