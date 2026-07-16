@@ -51,7 +51,7 @@ def load_week():
     return week
 
 
-def simulate_week(week):
+def simulate_week(week, capacity=BATTERY_CAPACITY):
     charge_list, discharge_list, soc_list = [], [], []
 
     for date, group in week.groupby(week["timestamp"].dt.date):
@@ -61,13 +61,13 @@ def simulate_week(week):
 
         off_peak = min(rates)
         peak = max(rates)
-        max_hh = BATTERY_CAPACITY * MAX_C_RATE * 0.5
-        min_e = BATTERY_CAPACITY * MIN_SOC
+        max_hh = capacity * MAX_C_RATE * 0.5
+        min_e = capacity * MIN_SOC
         soc = min_e
 
         for c, r in zip(cons, rates):
             if r <= off_peak:
-                charge = min(max_hh, BATTERY_CAPACITY - soc)
+                charge = min(max_hh, capacity - soc)
                 soc += charge
                 charge_list.append(charge)
                 discharge_list.append(0.0)
@@ -85,42 +85,41 @@ def simulate_week(week):
     return np.array(charge_list), np.array(discharge_list), np.array(soc_list)
 
 
-def main():
-    week = load_week()
-    charge, discharge, soc = simulate_week(week)
+BATTERY_SIZES_KWH = [2, 5, 7, 10, 13, 15]
+
+
+def stats_box(total, peak, offpeak):
+    return (
+        f"Total:          {total:.2f} kWh\n"
+        f"High rate:   {peak:.2f} kWh\n"
+        f"Low rate:    {offpeak:.2f} kWh"
+    )
+
+
+def plot_battery_size(week, capacity):
+    charge, discharge, soc = simulate_week(week, capacity)
 
     ts = week["timestamp"].values
     consumption = week["consumption_kwh"].values
     tariff = week["rate_p"].values
     net_grid = consumption + charge - discharge
 
-    off_peak_rate = tariff.min()
-    peak_rate = tariff.max()
-    is_peak = tariff >= peak_rate
-    is_off_peak = tariff <= off_peak_rate
+    is_peak    = tariff >= tariff.max()
+    is_offpeak = tariff <= tariff.min()
 
-    # Totals for text boxes
     no_batt_total   = consumption.sum()
     no_batt_peak    = consumption[is_peak].sum()
-    no_batt_offpeak = consumption[is_off_peak].sum()
-
+    no_batt_offpeak = consumption[is_offpeak].sum()
     batt_total      = net_grid.sum()
     batt_peak       = net_grid[is_peak].sum()
-    batt_offpeak    = net_grid[is_off_peak].sum()
-
-    def stats_box(total, peak, offpeak):
-        return (
-            f"Total:          {total:.2f} kWh\n"
-            f"High rate:   {peak:.2f} kWh\n"
-            f"Low rate:    {offpeak:.2f} kWh"
-        )
+    batt_offpeak    = net_grid[is_offpeak].sum()
 
     fig, (ax0, ax1, ax2) = plt.subplots(
         3, 1, figsize=(16, 11), sharex=True,
         gridspec_kw={"height_ratios": [2, 2, 1]}
     )
     fig.suptitle(
-        f"Meter 1 (MPAN {MPAN}) - Week 6-12 Jul 2026  |  5 kWh Battery Simulation",
+        f"Meter {METER_NUMBER} (MPAN {MPAN}) - Week {WEEK_NUMBER} ({WEEK_START.strftime('%d %b')}–{WEEK_END.strftime('%d %b %Y')})  |  {int(capacity)} kWh Battery Simulation",
         fontsize=13, fontweight="bold"
     )
 
@@ -135,8 +134,7 @@ def main():
     ax0_r.set_ylim(0, tariff.max() * 3)
     ax0.set_ylabel("Energy (kWh / half-hour)", fontsize=10)
     ax0.set_title("Actual Consumption", fontsize=10, loc="left")
-    y_max0 = np.percentile(consumption, 99) * 1.2
-    ax0.set_ylim(bottom=0, top=y_max0)
+    ax0.set_ylim(bottom=0, top=np.percentile(consumption, 99) * 1.2)
     ax0.grid(True, alpha=0.25)
     ax0_r.legend(loc="upper right", fontsize=8)
     ax0.text(0.01, 0.97, stats_box(no_batt_total, no_batt_peak, no_batt_offpeak),
@@ -156,18 +154,15 @@ def main():
                      where=(net_grid < consumption),
                      step="post", color="#032147", alpha=0.45,
                      label="Battery discharging (grid saving)")
-
     ax1_r = ax1.twinx()
     ax1_r.step(ts, tariff, where="post", color="red", linewidth=1,
                linestyle="--", alpha=0.6, label="Tariff")
     ax1_r.set_ylabel("Tariff (p/kWh)", color="red", fontsize=10)
     ax1_r.tick_params(axis="y", colors="red")
     ax1_r.set_ylim(0, tariff.max() * 3)
-
     ax1.set_ylabel("Energy (kWh / half-hour)", fontsize=10)
-    ax1.set_title("With Battery", fontsize=10, loc="left")
-    y_max1 = np.percentile(net_grid, 99) * 1.2
-    ax1.set_ylim(bottom=-0.05, top=y_max1)
+    ax1.set_title(f"With {int(capacity)} kWh Battery", fontsize=10, loc="left")
+    ax1.set_ylim(bottom=-0.05, top=np.percentile(net_grid, 99) * 1.2)
     ax1.grid(True, alpha=0.25)
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax1_r.get_legend_handles_labels()
@@ -179,22 +174,28 @@ def main():
     # --- Panel 2: battery SOC ---
     ax2.fill_between(ts, 0, soc, step="post", color="#032147", alpha=0.5)
     ax2.step(ts, soc, where="post", color="#032147", linewidth=1)
-    ax2.axhline(BATTERY_CAPACITY * MIN_SOC, color="red", linestyle="--",
-                linewidth=0.8, alpha=0.7,
-                label=f"Min SOC ({MIN_SOC * 100:.0f}% = {BATTERY_CAPACITY * MIN_SOC} kWh)")
-    ax2.axhline(BATTERY_CAPACITY, color="#888888", linestyle=":",
-                linewidth=0.8, alpha=0.7, label=f"Full ({BATTERY_CAPACITY} kWh)")
+    ax2.axhline(capacity * MIN_SOC, color="red", linestyle="--", linewidth=0.8,
+                alpha=0.7, label=f"Min SOC ({MIN_SOC*100:.0f}% = {capacity*MIN_SOC} kWh)")
+    ax2.axhline(capacity, color="#888888", linestyle=":", linewidth=0.8,
+                alpha=0.7, label=f"Full ({capacity} kWh)")
     ax2.set_ylabel("Battery SOC (kWh)", fontsize=10)
-    ax2.set_ylim(0, BATTERY_CAPACITY * 1.1)
+    ax2.set_ylim(0, capacity * 1.1)
     ax2.legend(loc="upper right", fontsize=8)
     ax2.grid(True, alpha=0.25)
-
     ax2.xaxis.set_major_locator(mdates.DayLocator())
     ax2.xaxis.set_major_formatter(mdates.DateFormatter("%a\n%d %b"))
 
     plt.tight_layout()
-    plt.savefig(OUTPUT_FILE, dpi=150, bbox_inches="tight")
-    print(f"Plot saved to {OUTPUT_FILE}")
+    out = f"{DATA_DIR}/m{METER_NUMBER}-{int(capacity)}KW-wk{WEEK_NUMBER}.png"
+    plt.savefig(out, dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"Plot saved to {out}")
+
+
+def main():
+    week = load_week()
+    for capacity in BATTERY_SIZES_KWH:
+        plot_battery_size(week, capacity)
 
 
 if __name__ == "__main__":
