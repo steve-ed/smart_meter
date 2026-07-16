@@ -135,7 +135,7 @@ def main():
     ax0.grid(True, alpha=0.25)
     ax0.legend(["Consumption"], loc="upper left", fontsize=8)
     ax0_r.legend(loc="upper right", fontsize=8)
-    ax0.text(0.01, 0.97, stats_box(no_batt_total, no_batt_peak, no_batt_offpeak),
+    ax0.text(0.01, 0.35, stats_box(no_batt_total, no_batt_peak, no_batt_offpeak),
              transform=ax0.transAxes, fontsize=10, verticalalignment="top",
              bbox=dict(boxstyle="round,pad=0.4", facecolor="white", alpha=0.8))
 
