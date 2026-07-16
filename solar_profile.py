@@ -54,3 +54,54 @@ def get_pvgis_profile(lat, lon, tilt=35, azimuth=180, year=2023, cache_dir="data
         slots[hour * 2 + 1] = kwh_per_hh
 
     return profile
+
+
+import pandas as pd
+
+STANDARD_YIELD_KWH_PER_KWP = 900.0
+
+
+def get_measured_profile(data_dir, standard_yield=STANDARD_YIELD_KWH_PER_KWP):
+    """
+    Build a solar generation profile from real sandbox PV production data.
+
+    Normalises the three sandbox PV MPXNs to a common annual yield
+    (standard_yield kWh/kWp/yr), then averages their seasonal + diurnal shape.
+
+    Returns:
+        dict[date, list[48 floats]] — kWh per half-hour per kWp.
+        Multiply by panel_kwp to get absolute generation.
+    """
+    path = os.path.join(data_dir, "solar_production.csv")
+    if not os.path.exists(path):
+        raise FileNotFoundError(
+            f"{path} not found. Run pull_solar_production.py first."
+        )
+
+    df = pd.read_csv(path)
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    df["month"] = df["timestamp"].dt.month
+    df["slot"] = df["timestamp"].dt.hour * 2 + df["timestamp"].dt.minute // 30
+
+    # Mean kWh per (month, slot) across all MPXNs — captures seasonal + diurnal shape
+    shape_dict = df.groupby(["month", "slot"])["value_kwh"].mean().to_dict()
+
+    # Compute implied annual total (mean shape × days in each month)
+    days_in_month = {1:31, 2:28, 3:31, 4:30, 5:31, 6:30, 7:31, 8:31, 9:30, 10:31, 11:30, 12:31}
+    annual_total = sum(
+        shape_dict.get((m, s), 0.0) * days_in_month[m]
+        for m in range(1, 13)
+        for s in range(48)
+    )
+
+    # Scale so annual generation = standard_yield per kWp
+    scale = standard_yield / annual_total if annual_total > 0 else 0.0
+
+    # Build profile: {date(2023, m, d): list[48]} in kWh per kWp
+    profile = {}
+    d = date(2023, 1, 1)
+    while d <= date(2023, 12, 31):
+        profile[d] = [shape_dict.get((d.month, s), 0.0) * scale for s in range(48)]
+        d += timedelta(days=1)
+
+    return profile
