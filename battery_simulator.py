@@ -5,7 +5,7 @@ def simulate_day(consumption_hh, tariff_hh, battery_capacity_kwh,
 
     Charges at the lowest rate in tariff_hh; discharges at the highest.
     Saving formula accounts for round-trip losses:
-        saving_p = delivered * (peak_rate - off_peak_rate / efficiency)
+        saving_p = delivered * (peak_rate - (off_peak_rate / efficiency))
 
     Args:
         consumption_hh: list of 48 floats, kWh consumed per half-hour
