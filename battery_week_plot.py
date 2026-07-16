@@ -136,7 +136,7 @@ def main():
     ax0.legend(["Consumption"], loc="upper left", fontsize=8)
     ax0_r.legend(loc="upper right", fontsize=8)
     ax0.text(0.01, 0.97, stats_box(no_batt_total, no_batt_peak, no_batt_offpeak),
-             transform=ax0.transAxes, fontsize=8, verticalalignment="top",
+             transform=ax0.transAxes, fontsize=10, verticalalignment="top",
              bbox=dict(boxstyle="round,pad=0.4", facecolor="white", alpha=0.8))
 
     # --- Panel 1: battery simulation ---
@@ -169,7 +169,7 @@ def main():
     lines2, labels2 = ax1_r.get_legend_handles_labels()
     ax1.legend(lines1 + lines2, labels1 + labels2, loc="upper right", fontsize=8)
     ax1.text(0.01, 0.97, stats_box(batt_total, batt_peak, batt_offpeak),
-             transform=ax1.transAxes, fontsize=8, verticalalignment="top",
+             transform=ax1.transAxes, fontsize=10, verticalalignment="top",
              bbox=dict(boxstyle="round,pad=0.4", facecolor="white", alpha=0.8))
 
     # --- Panel 2: battery SOC ---
