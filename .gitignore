@@ -1,4 +1,9 @@
 data/consumption.csv
 data/consumption_clean.csv
+data/solar_production.csv
+data/pvgis_cache_*.json
+data/*-solar-results.txt
+data/*-solar-heatmap-*.png
+data/*-solar-wk*.png
 __pycache__/
 tests/__pycache__/
