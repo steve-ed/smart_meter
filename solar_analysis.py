@@ -113,6 +113,31 @@ def run_sweep(days, solar_profile, config):
     return savings, paybacks
 
 
+def find_optimum(all_results):
+    best = None
+    for (profile_label, config_label), (savings, paybacks) in all_results.items():
+        for pi, panel_kwp in enumerate(PANEL_SIZES_KWP):
+            for bi, battery_kwh in enumerate(BATTERY_SIZES_KWH):
+                p = paybacks[pi][bi]
+                s = savings[pi][bi]
+                if not np.isfinite(p):
+                    continue
+                if best is None or p < best["payback_years"] or (
+                    p == best["payback_years"] and s > best["annual_saving_gbp"]
+                ):
+                    installed = panel_kwp * SOLAR_COST_PER_KWP + battery_kwh * BATTERY_COST_PER_KWH
+                    best = {
+                        "profile": profile_label,
+                        "config_label": config_label,
+                        "panel_kwp": panel_kwp,
+                        "battery_kwh": battery_kwh,
+                        "payback_years": p,
+                        "annual_saving_gbp": s,
+                        "installed_cost_gbp": installed,
+                    }
+    return best
+
+
 def build_text_table(days, savings, paybacks, profile_label, config):
     col_w = 16
     header = f"{'Panel':>8} | " + " | ".join(
