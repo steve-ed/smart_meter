@@ -7,6 +7,7 @@ def simulate_day_solar(
     max_c_rate=0.5,
     min_soc=0.20,
     export_rate_p=15.0,
+    max_soc=1.0,
 ):
     """
     Simulate one day of solar + battery dispatch across 48 half-hourly slots.
@@ -40,6 +41,7 @@ def simulate_day_solar(
     peak_rate = max(tariff_hh)
     max_hh_kwh = battery_capacity_kwh * max_c_rate * 0.5
     min_energy = battery_capacity_kwh * min_soc
+    max_energy = battery_capacity_kwh * max_soc
 
     soc = min_energy
     baseline_cost_p = sum(c * r for c, r in zip(consumption_hh, tariff_hh))
@@ -63,7 +65,7 @@ def simulate_day_solar(
         # 2. Surplus solar charges battery
         charge_from_solar = 0.0
         if surplus_solar > 0 and battery_capacity_kwh > 0:
-            space = battery_capacity_kwh - soc
+            space = max_energy - soc
             charge_from_solar = min(max_hh_kwh, space, surplus_solar)
             soc += charge_from_solar
             surplus_solar -= charge_from_solar
@@ -75,7 +77,7 @@ def simulate_day_solar(
         # 4 & 5: off-peak grid charges OR peak battery discharges (mutually exclusive)
         if rate <= off_peak_rate and battery_capacity_kwh > 0:
             remaining_c_rate = max_hh_kwh - charge_from_solar
-            space = battery_capacity_kwh - soc
+            space = max_energy - soc
             charge_from_grid = min(remaining_c_rate, space)
             soc += charge_from_grid
             net_load += charge_from_grid

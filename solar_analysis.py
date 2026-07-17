@@ -23,6 +23,7 @@ PANEL_TILT           = 35
 PANEL_AZIMUTH        = 180
 WARRANTY_YEARS       = 15
 MIN_SOC              = 0.20
+MAX_SOC              = 0.90
 BATTERY_CONFIGS = [
     {"label": "0.5C", "max_c_rate": 0.5, "rte": 0.92},
     {"label": "1C",   "max_c_rate": 1.0, "rte": 0.88},
@@ -100,7 +101,7 @@ def run_sweep(days, solar_profile, config):
             results = [
                 simulate_day_solar(
                     c, t, solar_per_day[d],
-                    battery_kwh, rte, max_c_rate, MIN_SOC, EXPORT_RATE_P,
+                    battery_kwh, rte, max_c_rate, MIN_SOC, EXPORT_RATE_P, MAX_SOC,
                 )
                 for d, c, t in days
             ]
@@ -268,6 +269,7 @@ def simulate_week_solar(week_df, solar_profile, panel_kwp, battery_kwh, config):
     max_c_rate = config["max_c_rate"]
     max_hh = battery_kwh * max_c_rate * 0.5
     min_e = battery_kwh * MIN_SOC
+    max_e = battery_kwh * MAX_SOC
     soc = min_e
 
     solar_list, self_consumed_list, exported_list = [], [], []
@@ -292,7 +294,7 @@ def simulate_week_solar(week_df, solar_profile, panel_kwp, battery_kwh, config):
 
             charge_solar = 0.0
             if surplus > 0 and battery_kwh > 0:
-                space = battery_kwh - soc
+                space = max_e - soc
                 charge_solar = min(max_hh, space, surplus)
                 soc += charge_solar
                 surplus -= charge_solar
@@ -303,7 +305,7 @@ def simulate_week_solar(week_df, solar_profile, panel_kwp, battery_kwh, config):
             discharge = 0.0
             if rate <= off_peak and battery_kwh > 0:
                 remaining = max_hh - charge_solar
-                space = battery_kwh - soc
+                space = max_e - soc
                 charge_grid = min(remaining, space)
                 soc += charge_grid
                 net_load += charge_grid
