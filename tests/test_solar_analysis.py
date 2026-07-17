@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from solar_analysis import find_optimum, PANEL_SIZES_KWP, BATTERY_SIZES_KWH
+from solar_analysis import find_optimum, PANEL_SIZES_KWP, BATTERY_SIZES_KWH, SOLAR_COST_PER_KWP, BATTERY_COST_PER_KWH
 
 
 def _make_results(payback_map):
@@ -19,7 +19,7 @@ def _make_results(payback_map):
         for pi, panel_kwp in enumerate(PANEL_SIZES_KWP):
             for bi, battery_kwh in enumerate(BATTERY_SIZES_KWH):
                 p = paybacks[pi][bi]
-                installed = panel_kwp * 900 + battery_kwh * 500
+                installed = panel_kwp * SOLAR_COST_PER_KWP + battery_kwh * BATTERY_COST_PER_KWH
                 savings[pi][bi] = installed / p if p < np.inf else 0.0
         results[key] = (savings, paybacks)
     return results
