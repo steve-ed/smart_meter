@@ -163,6 +163,16 @@ def build_optimum_block(optimum):
 
 def build_text_table(days, savings, paybacks, profile_label, config):
     col_w = 16
+
+    # Find the best (shortest payback, tie-break highest saving) cell for this section
+    finite_mask = np.isfinite(paybacks)
+    if finite_mask.any():
+        min_p = paybacks[finite_mask].min()
+        candidates = np.argwhere((paybacks == min_p) & finite_mask)
+        best_pi, best_bi = max(candidates, key=lambda idx: savings[idx[0], idx[1]])
+    else:
+        best_pi, best_bi = -1, -1
+
     header = f"{'Panel':>8} | " + " | ".join(
         f"{b:>3} kWh".center(col_w) for b in BATTERY_SIZES_KWH
     )
@@ -173,20 +183,29 @@ def build_text_table(days, savings, paybacks, profile_label, config):
         header,
         divider,
     ]
+    has_warranty_flag = False
     for pi, panel_kwp in enumerate(PANEL_SIZES_KWP):
         cells = []
         for bi in range(len(BATTERY_SIZES_KWH)):
             s = savings[pi][bi]
             p = paybacks[pi][bi]
-            flag = "*" if p > WARRANTY_YEARS else " "
+            if p > WARRANTY_YEARS:
+                flag = "*"
+                has_warranty_flag = True
+            elif (pi, bi) == (best_pi, best_bi):
+                flag = "!"
+            else:
+                flag = " "
             cells.append(f"£{s:>5,.0f}/yr {p:>4.1f}y{flag}".center(col_w))
         lines.append(f"{panel_kwp:>5} kWp | " + " | ".join(cells))
 
     lines.append(divider)
-    if any(paybacks[pi][bi] > WARRANTY_YEARS
-           for pi in range(len(PANEL_SIZES_KWP))
-           for bi in range(len(BATTERY_SIZES_KWH))):
-        lines.append(f"* Payback exceeds {WARRANTY_YEARS}-year warranty period.")
+    legend = []
+    if (best_pi, best_bi) != (-1, -1):
+        legend.append("! Recommended for this section (shortest payback).")
+    if has_warranty_flag:
+        legend.append(f"* Payback exceeds {WARRANTY_YEARS}-year warranty period.")
+    lines.extend(legend)
     return lines
 
 
