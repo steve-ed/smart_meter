@@ -138,6 +138,29 @@ def find_optimum(all_results):
     return best
 
 
+def build_optimum_block(optimum):
+    if optimum is None:
+        return ["RECOMMENDED SYSTEM: No configuration yields a positive annual saving."]
+
+    cfg = next(c for c in BATTERY_CONFIGS if c["label"] == optimum["config_label"])
+    panel_cost = optimum["panel_kwp"] * SOLAR_COST_PER_KWP
+    battery_cost = optimum["battery_kwh"] * BATTERY_COST_PER_KWH
+
+    return [
+        "RECOMMENDED SYSTEM (shortest payback, all profiles and configs)",
+        f"  Profile:        {optimum['profile']}",
+        f"  Battery config: {optimum['config_label']}  "
+        f"(RTE {cfg['rte']*100:.0f}%, max {cfg['max_c_rate']}C)",
+        f"  Solar panels:   {optimum['panel_kwp']} kWp   —  "
+        f"£{panel_cost:,.0f} installed",
+        f"  Battery:        {optimum['battery_kwh']} kWh   —  "
+        f"£{battery_cost:,.0f} installed",
+        f"  Total cost:     £{optimum['installed_cost_gbp']:,.0f}",
+        f"  Annual saving:  £{optimum['annual_saving_gbp']:,.0f}/yr",
+        f"  Payback:        {optimum['payback_years']:.1f} years",
+    ]
+
+
 def build_text_table(days, savings, paybacks, profile_label, config):
     col_w = 16
     header = f"{'Panel':>8} | " + " | ".join(
@@ -421,6 +444,10 @@ def main():
             all_results[(profile_label, config["label"])] = (savings, paybacks)
             lines.extend(build_text_table(days, savings, paybacks, profile_label, config))
             lines.append("")
+
+    optimum = find_optimum(all_results)
+    lines.extend(build_optimum_block(optimum))
+    lines.append("")
 
     output = "\n".join(lines)
     print(output)
