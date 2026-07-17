@@ -49,6 +49,7 @@ Generated from solar_analysis.py parameters
 -- Other Simulation Parameters --
 
   Export rate (SEG):   15.0 p/kWh
+  Discount rate:        3.5%  (HM Treasury Green Book)
   Warranty period:     15 years
   Min battery SOC:     20%
   Max battery SOC:     90%

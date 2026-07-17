@@ -22,6 +22,7 @@ EXPORT_RATE_P        = 15.0     # p/kWh Smart Export Guarantee
 PANEL_TILT           = 35
 PANEL_AZIMUTH        = 180
 WARRANTY_YEARS       = 15
+DISCOUNT_RATE        = 0.035   # 3.5% — HM Treasury Green Book
 MIN_SOC              = 0.20
 MAX_SOC              = 0.90
 BATTERY_CONFIGS = [
@@ -108,7 +109,11 @@ def run_sweep(days, solar_profile, config):
             avg_daily_p = sum(r["daily_saving_p"] for r in results) / len(days)
             annual_gbp = avg_daily_p * 365 / 100
             installed = panel_kwp * SOLAR_COST_PER_KWP + battery_kwh * BATTERY_COST_PER_KWH
-            paybacks[pi][bi] = installed / annual_gbp if annual_gbp > 0 else np.inf
+            if annual_gbp > 0:
+                x = 1 - DISCOUNT_RATE * installed / annual_gbp
+                paybacks[pi][bi] = -np.log(x) / np.log(1 + DISCOUNT_RATE) if x > 0 else np.inf
+            else:
+                paybacks[pi][bi] = np.inf
             savings[pi][bi] = annual_gbp
 
     return savings, paybacks
@@ -148,7 +153,7 @@ def build_optimum_block(optimum):
     battery_cost = optimum["battery_kwh"] * BATTERY_COST_PER_KWH
 
     return [
-        "RECOMMENDED SYSTEM (shortest payback, all profiles and configs)",
+        "RECOMMENDED SYSTEM (shortest discounted payback, all profiles and configs)",
         f"  Profile:        {optimum['profile']}",
         f"  Battery config: {optimum['config_label']}  "
         f"(RTE {cfg['rte']*100:.0f}%, max {cfg['max_c_rate']}C)",
@@ -158,7 +163,7 @@ def build_optimum_block(optimum):
         f"£{battery_cost:,.0f} installed",
         f"  Total cost:     £{optimum['installed_cost_gbp']:,.0f}",
         f"  Annual saving:  £{optimum['annual_saving_gbp']:,.0f}/yr",
-        f"  Payback:        {optimum['payback_years']:.1f} years",
+        f"  Discounted payback: {optimum['payback_years']:.1f} years  (@ {DISCOUNT_RATE*100:.1f}% discount rate)",
     ]
 
 
@@ -203,7 +208,7 @@ def build_text_table(days, savings, paybacks, profile_label, config):
     lines.append(divider)
     legend = []
     if (best_pi, best_bi) != (-1, -1):
-        legend.append("! Recommended for this section (shortest payback).")
+        legend.append("! Recommended for this section (shortest discounted payback).")
     if has_warranty_flag:
         legend.append(f"* Payback exceeds {WARRANTY_YEARS}-year warranty period.")
     lines.extend(legend)
@@ -451,7 +456,7 @@ def main():
         f"Tariff: {off_peak}p off-peak / {peak}p peak  |  "
         f"Solar: £{SOLAR_COST_PER_KWP}/kWp  |  Battery: £{BATTERY_COST_PER_KWH}/kWh  |  "
         f"Export: {EXPORT_RATE_P}p/kWh SEG",
-        f"Days simulated: {len(days):,} ({date_min} to {date_max})  |  Min SOC: {MIN_SOC*100:.0f}%",
+        f"Days simulated: {len(days):,} ({date_min} to {date_max})  |  Min SOC: {MIN_SOC*100:.0f}%  |  Discount rate: {DISCOUNT_RATE*100:.1f}%",
         f"Baseline (no solar, no battery): £{baseline_annual_gbp:,.2f}/yr",
         "",
     ]
