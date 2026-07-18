@@ -1,98 +1,192 @@
 # Value-Added Services — External Data Integration
 
-Five services enabled by combining smart meter data with outside temperature and occupancy detection.
+Services are ordered by commercial "bang for the buck" — highest addressable market, lowest incremental data cost, and clearest monetisation path first.
 
 ---
 
-## 1. Heating Efficiency Scoring
+## Tier 1 — Smart Meter Data Only (no extra sensors required)
 
-Compare gas consumption against outside temperature (degree-days). Flag days where gas usage is anomalously high for the temperature — a sign of poor insulation, a faulty boiler, or a door/window left open. Benchmark each home against similar-weather peers.
+*Lowest cost to deliver. Every consented meter is immediately eligible. Monetisation via referral fees, switching commissions, and installer leads.*
 
-## 2. Vacancy-Aware Anomaly Suppression
+---
 
-Occupancy detection (PIR, phone presence, or calendar integration) removes false positives from the flat-line and spike detectors. A flat-line during a two-week holiday is expected; one during a normal week is a fault. Occupancy context separates the two and dramatically improves alert signal-to-noise.
+## 1. Smart Tariff Matching
 
-## 3. Heating Pre-Warm Optimisation
+Combine the household's half-hourly electricity consumption shape with outdoor temperature (as a proxy for heating demand seasonality) to score every available market tariff against actual usage. A household with heavy overnight consumption in winter scores very differently on an Agile tariff versus a two-rate Economy 7 versus a flat rate. Produces a ranked list of tariffs with projected annual saving versus current, updated whenever the consumption profile or available tariffs change.
 
-Correlate occupancy arrival time with outside temperature to recommend the optimal boiler start time. Colder weather needs an earlier start; mild weather needs less lead time. Delivered as a daily push notification: "Turn heating on at 6:45 today."
+> **Commercial rationale:** Largest addressable market — every electricity customer. Switching referral revenue is proven (Uswitch, Energy Monitor). Zero additional data cost beyond the smart meter read.
 
-## 4. Standby and Phantom Load Detection
+---
 
-When occupancy sensors confirm the property is empty, any sustained non-zero electricity consumption is standby or forgotten-on appliances. Quantify and benchmark against similar unoccupied periods to surface devices worth replacing or switching off at the wall.
-
-## 5. Comfort vs Cost Trade-Off Reporting
-
-Combine temperature (indoor from a smart thermostat, outdoor from a weather API) with occupancy hours to produce a weekly "comfort score" — how warm the home was when people were actually in it — against energy spend. Lets consumers see whether their heating schedule is efficient or heating an empty home.
-
-## 6. Battery Size Optimisation
+## 2. Battery Size Optimisation
 
 Using half-hourly consumption data combined with time-of-use tariff rates, determine what battery capacity gives a reasonable payback period. The analysis models how much cheap-rate electricity a battery of a given size could store and discharge during peak-rate periods, calculates the daily saving, and projects the break-even point against typical installed costs. For meters with solar production data, the model also accounts for self-consumption — storing surplus generation rather than exporting it at a lower rate.
 
-## 7. Appliance Load Disaggregation
+> **Commercial rationale:** Already implemented. Growing battery market (GivEnergy, SunSynk, Tesla Powerwall). Installer referral fees are high. Solar + battery combinations are a natural upsell.
+
+---
+
+## 3. Appliance Load Disaggregation
 
 Half-hourly electricity data contains characteristic consumption signatures for high-draw appliances (washing machines, dishwashers, EV chargers, immersion heaters). Pattern-matching against known signatures can identify which appliances ran and when — without any additional hardware. Combined with ToU tariff data, this surfaces which appliances are running at expensive times and quantifies the saving from shifting them to off-peak slots.
+
+> **Commercial rationale:** No sensors required. Revenue via appliance manufacturer partnerships, retailer referrals for upgrades, and premium subscription. Established market (Loop, Hildebrand).
+
+---
+
+## 4. Heat Pump Suitability Scoring
+
+Using the existing gas consumption profile normalised against outdoor temperature, model what the same heating demand would cost on a heat pump at the property's current electricity tariff. The coefficient of performance (COP) of a heat pump varies with outdoor temperature — colder days yield lower COP. By applying a temperature-dependent COP curve to each half-hour of historical gas demand, produce a realistic annual cost comparison and payback estimate for a heat pump retrofit, specific to this household's actual usage pattern and tariff.
+
+> **Commercial rationale:** Government Boiler Upgrade Scheme (£7,500 grant) is driving demand. Qualified installer leads are worth £hundreds each. ~1.5M boiler replacements per year in the UK are a large conversion opportunity.
+
+---
+
+## Tier 2 — Weather API Required (free or low cost)
+
+*A free outdoor temperature feed (Met Office, Open-Meteo) unlocks the next tier. Marginal cost near zero; significantly expands the analytical capability.*
+
+---
+
+## 5. Boiler Efficiency Trending
+
+At a given outdoor temperature, the gas consumed to reach and maintain a target indoor temperature should be consistent. By holding outdoor temperature constant (using degree-day normalisation) and tracking gas consumption over weeks and months, gradual boiler efficiency degradation becomes visible long before it causes a breakdown — a 10–15% rise in normalised consumption is a reliable early warning that the boiler needs a service. Removes the seasonal confound that otherwise masks the signal.
+
+> **Commercial rationale:** 25 million gas boilers in the UK. Boiler service and replacement referrals are a proven market. Manufacturer partnerships (Worcester Bosch, Vaillant) have clear appetite for predictive service data.
+
+---
+
+## 6. Heating Efficiency Scoring
+
+Compare gas consumption against outside temperature (degree-days). Flag days where gas usage is anomalously high for the temperature — a sign of poor insulation, a faulty boiler, or a door/window left open. Benchmark each home against similar-weather peers.
+
+> **Commercial rationale:** Energy supplier Ofgem obligation compliance tool. Peer benchmarking drives consumer engagement and switching. Foundation data layer for services #5, #7, and #10.
+
+---
+
+## 7. Degree-Day Budget Forecasting
+
+Combine the historical relationship between this property's gas consumption and heating degree-days (established from service #6) with a 14-day weather forecast to produce a rolling energy spend prediction. Alert the consumer when the forecast implies they will exceed a monthly budget before the month ends — with enough lead time to adjust behaviour (turn the thermostat down 1°C, delay the immersion heater cycle) rather than discovering the overspend on the bill.
+
+> **Commercial rationale:** High-frequency consumer touchpoint driving app engagement and retention. Natural upsell into premium subscription tier.
+
+---
 
 ## 8. Carbon-Aware Demand Shifting
 
 National Grid ESO publishes half-hourly carbon intensity forecasts for the next 48 hours. Overlaying these against a household's flexible loads (identified from disaggregation above, or from EV/battery schedules) enables a "run this now vs. later" recommendation that optimises simultaneously for cost and carbon. Particularly powerful for EV charging and battery charge cycles.
 
-## 9. Micro-Leak and Frost Detection
+> **Commercial rationale:** EV adoption accelerating rapidly. EV charger and battery manufacturer partnerships. ESO data is free. Carbon reporting increasingly valued by consumers and corporates.
+
+---
+
+## 9. Heating Pre-Warm Optimisation
+
+Correlate occupancy arrival time with outside temperature to recommend the optimal boiler start time. Colder weather needs an earlier start; mild weather needs less lead time. Delivered as a daily push notification: "Turn heating on at 6:45 today."
+
+> **Commercial rationale:** Smart thermostat manufacturer partnerships (Nest, Hive, Tado). Daily notification creates habitual app engagement. Simple to implement; high perceived consumer value.
+
+---
+
+## 10. Micro-Leak and Frost Detection
 
 A sustained low-level non-zero gas reading during confirmed vacant/overnight periods — too small to be a boiler cycle but persistent across multiple half-hours — is a signature of a slow gas leak, a pilot light, or a dripping hot tap keeping the cylinder topped up. Combined with an outdoor temperature sensor, the same logic flags frost-risk nights where the heating hasn't fired as expected, enabling a pre-emptive alert before pipes freeze.
 
-## 10. Thermal Mass / Insulation Decay Profiling
+> **Commercial rationale:** Insurance sector partnership potential — prevented claims have high value. Home emergency cover upsell. Frost alert has strong consumer safety appeal.
+
+---
+
+## Tier 3 — Occupancy Detection Required (PIR / CO₂ sensor / phone presence)
+
+*A CO₂ sensor at ~£50 unlocks this tier without cameras or privacy concerns. Alternatively, phone presence or PIR.*
+
+---
+
+## 11. Vacancy-Aware Anomaly Suppression
+
+Occupancy detection (PIR, phone presence, or calendar integration) removes false positives from the flat-line and spike detectors. A flat-line during a two-week holiday is expected; one during a normal week is a fault. Occupancy context separates the two and dramatically improves alert signal-to-noise.
+
+> **Commercial rationale:** Foundation service that improves signal quality across the entire platform. Reduces alert fatigue for energy suppliers and DNOs using the data for network monitoring.
+
+---
+
+## 12. Standby and Phantom Load Detection
+
+When occupancy sensors confirm the property is empty, any sustained non-zero electricity consumption is standby or forgotten-on appliances. Quantify and benchmark against similar unoccupied periods to surface devices worth replacing or switching off at the wall.
+
+> **Commercial rationale:** Appliance upgrade referrals. Benchmarking creates shareable "waste score" with viral potential. Measurable saving makes consumer value tangible.
+
+---
+
+## Tier 4 — Indoor Temperature Sensor Required
+
+*A single indoor temperature sensor unlocks the EPC and insulation tier — the highest per-property commercial value in the stack.*
+
+---
+
+## 13. Thermal Mass / Insulation Decay Profiling
 
 After heating turns off (identifiable from the gas half-hourly drop to zero), track how quickly indoor temperature falls relative to outdoor temperature. The rate of decay is a direct measure of the building's thermal mass and insulation quality. Tracked over months and across weather conditions, this produces a "heat retention score" that degrades measurably if insulation settles, a window seal fails, or a loft hatch is left open — and benchmarks the home before and after retrofit work.
 
-### 10a. EPC Enhancement — Measured vs Modelled Performance Gap
+### 13a. EPC Enhancement — Measured vs Modelled Performance Gap
 
-Current EPCs are based on SAP (Standard Assessment Procedure) — a modelled estimate from construction type, not actual behaviour. The heat decay rate from service #10 gives a *measured* fabric heat loss coefficient (HLC) for that specific property. Comparing measured HLC against the SAP-predicted value quantifies the performance gap — many homes perform 30–50% worse than their EPC implies. This is actionable intelligence for both occupants and policymakers.
+Current EPCs are based on SAP (Standard Assessment Procedure) — a modelled estimate from construction type, not actual behaviour. The heat decay rate from service #13 gives a *measured* fabric heat loss coefficient (HLC) for that specific property. Comparing measured HLC against the SAP-predicted value quantifies the performance gap — many homes perform 30–50% worse than their EPC implies. This is actionable intelligence for both occupants and policymakers.
 
-### 10b. EPC Enhancement — Continuous / Dynamic EPC
+### 13b. EPC Enhancement — Continuous / Dynamic EPC
 
 A traditional EPC is a snapshot valid for 10 years. Continuous monitoring of heat retention produces a rolling, evidence-based efficiency score that updates automatically — degrading when insulation settles or a seal fails, improving after retrofit. This is a "living EPC" rather than a decaying paper certificate.
 
-### 10c. EPC Enhancement — Retrofit Impact Verification
+### 13c. EPC Enhancement — Retrofit Impact Verification
 
 Before/after measurements of the heat decay rate provide objective evidence that insulation, window, or heat pump retrofits delivered their claimed improvement. Currently retrofit schemes (ECO4, Great British Insulation Scheme) rely on modelled predictions. Measured before/after HLC makes verification independent and auditable — valuable for both grant compliance and consumer trust.
 
-### 10d. EPC Enhancement — Green Mortgage and Valuation Support
+### 13d. EPC Enhancement — Green Mortgage and Valuation Support
 
 Lenders offering green mortgages at preferential rates for high EPC properties currently rely on the certificate alone. A measured performance profile provides stronger evidence of genuine efficiency — and could challenge a fraudulently inflated or simply inaccurate EPC rating.
 
-### 10e. EPC Enhancement — National Housing Stock Carbon Accuracy
+### 13e. EPC Enhancement — National Housing Stock Carbon Accuracy
 
 EPCs feed into national carbon accounting for the housing sector. Measured HLC data at scale would significantly improve the accuracy of those estimates, which currently inherit all the errors in SAP modelling assumptions.
 
-> **Biggest near-term opportunity: Retrofit Verification** — there is a direct funding trail (ECO4 grants, boiler upgrade scheme) where independently measured proof of improvement has real financial value to installers, lenders, and regulators.
+> **Biggest near-term opportunity: Retrofit Verification (13c)** — there is a direct funding trail (ECO4 grants, boiler upgrade scheme) where independently measured proof of improvement has real financial value to installers, lenders, and regulators.
 
-## 11. Degree-Day Budget Forecasting
+---
 
-Combine the historical relationship between this property's gas consumption and heating degree-days (established from service #1) with a 14-day weather forecast to produce a rolling energy spend prediction. Alert the consumer when the forecast implies they will exceed a monthly budget before the month ends — with enough lead time to adjust behaviour (turn the thermostat down 1°C, delay the immersion heater cycle) rather than discovering the overspend on the bill.
+## 14. Comfort vs Cost Trade-Off Reporting
 
-## 12. Boiler Efficiency Trending
+Combine temperature (indoor from a smart thermostat, outdoor from a weather API) with occupancy hours to produce a weekly "comfort score" — how warm the home was when people were actually in it — against energy spend. Lets consumers see whether their heating schedule is efficient or heating an empty home.
 
-At a given outdoor temperature, the gas consumed to reach and maintain a target indoor temperature should be consistent. By holding outdoor temperature constant (using degree-day normalisation) and tracking gas consumption over weeks and months, gradual boiler efficiency degradation becomes visible long before it causes a breakdown — a 10–15% rise in normalised consumption is a reliable early warning that the boiler needs a service. Removes the seasonal confound that otherwise masks the signal.
+> **Commercial rationale:** Consumer engagement and retention feature. Differentiator for energy supplier apps. Natural companion to service #7 (budget forecasting).
 
-## 13. Heat Pump Suitability Scoring
+---
 
-Using the existing gas consumption profile normalised against outdoor temperature, model what the same heating demand would cost on a heat pump at the property's current electricity tariff. The coefficient of performance (COP) of a heat pump varies with outdoor temperature — colder days yield lower COP. By applying a temperature-dependent COP curve to each half-hour of historical gas demand, produce a realistic annual cost comparison and payback estimate for a heat pump retrofit, specific to this household's actual usage pattern and tariff.
+## Tier 5 — Indoor Temperature + Humidity Sensors Required
 
-## 14. Smart Tariff Matching
+*Adding humidity to the sensor stack unlocks health, condensation, and ventilation services — strong fit for social housing, landlord compliance, and healthcare adjacency markets.*
 
-Combine the household's half-hourly electricity consumption shape with outdoor temperature (as a proxy for heating demand seasonality) to score every available market tariff against actual usage. A household with heavy overnight consumption in winter scores very differently on an Agile tariff versus a two-rate Economy 7 versus a flat rate. Produces a ranked list of tariffs with projected annual saving versus current, updated whenever the consumption profile or available tariffs change.
+---
 
 ## 15. Condensation and Mould Risk Scoring
 
-Combine indoor temperature, indoor humidity, and outdoor temperature to continuously calculate the dew point relative to surface temperatures (which can be estimated from the indoor/outdoor differential and the insulation score from service #10). When surface temperatures approach dew point — typically on cold external walls in poorly ventilated rooms — flag condensation risk before visible mould develops. Correlate with heating patterns to identify whether longer or lower heating runs would reduce risk more cost-effectively than higher peak temperatures.
+Combine indoor temperature, indoor humidity, and outdoor temperature to continuously calculate the dew point relative to surface temperatures (which can be estimated from the indoor/outdoor differential and the insulation score from service #13). When surface temperatures approach dew point — typically on cold external walls in poorly ventilated rooms — flag condensation risk before visible mould develops. Correlate with heating patterns to identify whether longer or lower heating runs would reduce risk more cost-effectively than higher peak temperatures.
 
-## 16. Ventilation Efficiency and Air Quality Optimisation
+> **Commercial rationale:** Social housing and private landlord legal liability (Awaab's Law). Local authority compliance tool. High value niche with clear willingness to pay.
+
+---
+
+## 16. Illness and Comfort Environment Monitoring
+
+Public health research links sustained indoor temperatures below 18°C and relative humidity outside 40–60% to increased respiratory illness risk, particularly for elderly occupants. Using the half-hourly temperature and humidity streams, produce a weekly "healthy home score" tracking how many occupied hours fell within the WHO-recommended comfort envelope — and at what energy cost. Flags periods where the home was unhealthily cold or humid despite heating being on, pointing to distribution problems (e.g. a radiator off in a bedroom) rather than a generation problem.
+
+> **Commercial rationale:** Healthcare and social care sector partnerships. NHS winter pressures create willingness to pay for preventive monitoring. Elderly care and supported housing markets.
+
+---
+
+## 17. Ventilation Efficiency and Air Quality Optimisation
 
 Indoor humidity rising faster than outdoor humidity during occupied periods is a signature of insufficient ventilation relative to occupancy load (cooking, showering, breathing). By tracking the rate of indoor humidity rise against occupancy signals and outdoor conditions, quantify how much ventilation is needed and when. In homes with MVHR (mechanical ventilation with heat recovery), correlate fan speed and runtime with the humidity delta to score ventilation efficiency and detect filter degradation.
 
-## 17. Illness and Comfort Environment Monitoring
-
-Public health research links sustained indoor temperatures below 18°C and relative humidity outside 40–60% to increased respiratory illness risk, particularly for elderly occupants. Using the half-hourly temperature and humidity streams, produce a weekly "healthy home score" tracking how many occupied hours fell within the WHO-recommended comfort envelope — and at what energy cost. Flags periods where the home was unhealthily cold or humid despite heating being on, pointing to distribution problems (e.g. a radiator off in a bedroom) rather than a generation problem.
+> **Commercial rationale:** MVHR manufacturer partnerships. New-build compliance market. Smaller addressable market than Tiers 1–4 but growing with building regulation tightening (Part F).
 
 ---
 
@@ -104,7 +198,7 @@ Public health research links sustained indoor temperatures below 18°C and relat
 
 ### Air Quality
 - **CO₂ sensor** — occupancy proxy without privacy concerns (CO₂ rises when people are present), ventilation trigger, correlates with productivity/sleep quality research
-- **VOC / particulate sensor** — cooking and cleaning event detection, air quality scoring, correlates with ventilation adequacy from service #16
+- **VOC / particulate sensor** — cooking and cleaning event detection, air quality scoring, correlates with ventilation adequacy from service #17
 - **CO detector** (beyond safety role) — quantify incomplete combustion events from the boiler, early warning of burner degradation before efficiency loss shows in gas data
 
 ### Electrical
@@ -117,14 +211,14 @@ Public health research links sustained indoor temperatures below 18°C and relat
 - **Loft/cavity temperature sensor** — quantify insulation effectiveness directly, seasonal comparison
 
 ### Behavioural
-- **Smart doorbell / presence detection** — ground-truth occupancy for all occupancy-dependent services (#2, #3, #4, #5)
+- **Smart doorbell / presence detection** — ground-truth occupancy for all occupancy-dependent services (#11, #12, #14)
 - **Smart thermostat setpoint data** — separates "occupant chose to be cold" from "heating failed to reach setpoint", critical for comfort vs fault distinction
 
 ### Recommended Priority
-**CO₂ sensor** — gives occupancy without cameras or phones, improves six of the existing seventeen services, and costs under £50.
+**CO₂ sensor** — gives occupancy without cameras or phones, improves multiple services across Tiers 3–5, and costs under £50.
 
 ---
 
 ## Recommended Starting Point
 
-**#2 Vacancy-aware anomaly suppression** — occupancy context directly improves the existing anomaly detector, reducing alert fatigue before adding new features on top.
+**#11 Vacancy-aware anomaly suppression** — occupancy context directly improves the existing anomaly detector, reducing alert fatigue before adding new features on top.
