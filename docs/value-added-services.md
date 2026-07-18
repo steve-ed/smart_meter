@@ -44,6 +44,28 @@ A sustained low-level non-zero gas reading during confirmed vacant/overnight per
 
 After heating turns off (identifiable from the gas half-hourly drop to zero), track how quickly indoor temperature falls relative to outdoor temperature. The rate of decay is a direct measure of the building's thermal mass and insulation quality. Tracked over months and across weather conditions, this produces a "heat retention score" that degrades measurably if insulation settles, a window seal fails, or a loft hatch is left open — and benchmarks the home before and after retrofit work.
 
+### 10a. EPC Enhancement — Measured vs Modelled Performance Gap
+
+Current EPCs are based on SAP (Standard Assessment Procedure) — a modelled estimate from construction type, not actual behaviour. The heat decay rate from service #10 gives a *measured* fabric heat loss coefficient (HLC) for that specific property. Comparing measured HLC against the SAP-predicted value quantifies the performance gap — many homes perform 30–50% worse than their EPC implies. This is actionable intelligence for both occupants and policymakers.
+
+### 10b. EPC Enhancement — Continuous / Dynamic EPC
+
+A traditional EPC is a snapshot valid for 10 years. Continuous monitoring of heat retention produces a rolling, evidence-based efficiency score that updates automatically — degrading when insulation settles or a seal fails, improving after retrofit. This is a "living EPC" rather than a decaying paper certificate.
+
+### 10c. EPC Enhancement — Retrofit Impact Verification
+
+Before/after measurements of the heat decay rate provide objective evidence that insulation, window, or heat pump retrofits delivered their claimed improvement. Currently retrofit schemes (ECO4, Great British Insulation Scheme) rely on modelled predictions. Measured before/after HLC makes verification independent and auditable — valuable for both grant compliance and consumer trust.
+
+### 10d. EPC Enhancement — Green Mortgage and Valuation Support
+
+Lenders offering green mortgages at preferential rates for high EPC properties currently rely on the certificate alone. A measured performance profile provides stronger evidence of genuine efficiency — and could challenge a fraudulently inflated or simply inaccurate EPC rating.
+
+### 10e. EPC Enhancement — National Housing Stock Carbon Accuracy
+
+EPCs feed into national carbon accounting for the housing sector. Measured HLC data at scale would significantly improve the accuracy of those estimates, which currently inherit all the errors in SAP modelling assumptions.
+
+> **Biggest near-term opportunity: Retrofit Verification** — there is a direct funding trail (ECO4 grants, boiler upgrade scheme) where independently measured proof of improvement has real financial value to installers, lenders, and regulators.
+
 ## 11. Degree-Day Budget Forecasting
 
 Combine the historical relationship between this property's gas consumption and heating degree-days (established from service #1) with a 14-day weather forecast to produce a rolling energy spend prediction. Alert the consumer when the forecast implies they will exceed a monthly budget before the month ends — with enough lead time to adjust behaviour (turn the thermostat down 1°C, delay the immersion heater cycle) rather than discovering the overspend on the bill.
