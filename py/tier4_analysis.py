@@ -86,6 +86,10 @@ MAX_OUTDOOR_VARY_C   = 2.0    # discard events with unstable outdoor temperature
 R2_THRESHOLD         = 0.85   # minimum R² to accept a tau fit
 DT_HOURS             = 0.5
 
+# Overnight window: 23:00–05:30 (periods 46, 47, 0–11)
+# Excludes solar gain, cooking, occupancy metabolic heat
+OVERNIGHT_PERIODS = set(range(0, 12)) | {46, 47}
+
 # Comfort thresholds (WHO / CIBSE)
 COMFORT_LOWER_C = 18.0
 HEALTH_RISK_C   = 16.0
@@ -163,13 +167,25 @@ def load_tariff(mpan: str) -> dict[int, float]:
 # Service #13 — free cooling event detection
 # ---------------------------------------------------------------------------
 
-def find_free_cooling_events(indoor: dict[str, dict]) -> list[list[dict]]:
-    """Detect contiguous boiler-off periods with falling indoor temperature."""
+def find_free_cooling_events(indoor: dict[str, dict],
+                             overnight_only: bool = False) -> list[list[dict]]:
+    """Detect contiguous boiler-off periods with falling indoor temperature.
+
+    overnight_only: restrict to periods 23:00–05:30 to reduce solar gain,
+    occupancy and cooking disturbances.
+    """
     timestamps = sorted(indoor)
     events, current = [], []
 
     for ts in timestamps:
         p = indoor[ts]
+
+        if overnight_only and p["period"] not in OVERNIGHT_PERIODS:
+            if len(current) >= MIN_DECAY_PERIODS:
+                events.append(current)
+            current = []
+            continue
+
         boiler_off  = p["boiler_on"] == 0
         warm_enough = (p["temp_c"] - p["outdoor_c"]) >= MIN_DELTA_T_C
 
@@ -348,13 +364,14 @@ def performance_gap(hlc_result: dict, true_htc: float) -> dict:
 
 def rolling_epc(indoor: dict[str, dict], dwelling: dict,
                 floor_area: float, property_type: str,
-                build_era: str) -> list[dict]:
+                build_era: str,
+                overnight_only: bool = False) -> list[dict]:
     """
     Compute tau and EPC band for each calendar month using events
     within an 8-week rolling window ending at month end.
     """
     # Group events by month
-    events = find_free_cooling_events(indoor)
+    events = find_free_cooling_events(indoor, overnight_only=overnight_only)
     fits_by_month: dict[str, list] = defaultdict(list)
 
     for ev in events:
@@ -490,140 +507,191 @@ def write_rolling_epc_csv(meter_num: int, series: list[dict]):
 # Main
 # ---------------------------------------------------------------------------
 
+def analyse_meter(meter_num: int, mpan: str, indoor: dict,
+                  gas: dict, elec: dict, tariff: dict,
+                  overnight_only: bool) -> dict | None:
+    """Run #13/#13a/#13b for one meter under one event-filter mode."""
+    params     = DWELLING_PARAMS[meter_num]
+    meta       = METER_META[meter_num]
+    dwelling   = build_dwelling(params)
+    floor_area = params["total_floor_area_m2"]
+    true_htc   = dwelling["htc"]
+    true_tau   = dwelling["tau_hours"]
+    true_band  = hlc_to_epc_band(true_htc / floor_area)
+
+    events = find_free_cooling_events(indoor, overnight_only=overnight_only)
+    fits   = [fit_tau(ev) for ev in events]
+    good   = [f for f in fits if f]
+
+    tau_agg = aggregate_tau(good)
+    if tau_agg is None:
+        return None
+
+    hlc_result  = calculate_hlc(tau_agg, floor_area,
+                                meta["property_type"], meta["build_era"])
+    band_result = hlc_to_epc_band(hlc_result["hlc_per_m2"])
+    gap         = performance_gap(hlc_result, true_htc)
+
+    return {
+        "m":          meter_num,
+        "label":      params["label"],
+        "true_htc":   true_htc,
+        "true_tau":   true_tau,
+        "fit_tau":    tau_agg["tau_hours"],
+        "tau_lo":     tau_agg["tau_95ci_low"],
+        "tau_hi":     tau_agg["tau_95ci_high"],
+        "fit_htc":    hlc_result["hlc_w_per_k"],
+        "gap_pct":    gap["gap_pct"],
+        "interp":     gap["interpretation"],
+        "epc_true":   true_band["band"],
+        "epc_fitted": band_result["band"],
+        "n_events":   len(good),
+    }
+
+
+def print_summary_table(rows: list[dict], title: str):
+    w = 92
+    print(f"\n\n{'='*w}")
+    print(title)
+    print(f"{'='*w}")
+    hdr = (f"{'M':<3} {'Label':<30} {'tau true':>8} {'tau fit':>7} "
+           f"{'tau err%':>8} {'HTC true':>8} {'HLC fit':>7} "
+           f"{'Gap%':>6} {'Band':>5} {'Events':>7}")
+    print(hdr)
+    print("-" * w)
+    for r in rows:
+        if r is None:
+            continue
+        err = (r["fit_tau"] - r["true_tau"]) / r["true_tau"] * 100
+        print(f"{r['m']:<3} {r['label']:<30} "
+              f"{r['true_tau']:>8.1f} {r['fit_tau']:>7.1f} "
+              f"{err:>+8.1f}% {r['true_htc']:>8.1f} {r['fit_htc']:>7.1f} "
+              f"{r['gap_pct']:>+6.1f}% {r['epc_fitted']:>5}  "
+              f"{r['n_events']:>7}")
+    print("=" * w)
+
+
 def main():
-    summary = []
+    all_indoor, all_gas, all_elec, all_tariff = {}, {}, {}, {}
+
+    # Pre-load all data once
+    for meter_num, mpan in METERS.items():
+        all_indoor[meter_num] = load_indoor(meter_num)
+        all_gas[meter_num]    = load_consumption(mpan, "gas",
+                                                 REGRESSION_START, REGRESSION_END)
+        all_elec[meter_num]   = load_consumption(mpan, "electricity",
+                                                 WINTER_START, WINTER_END)
+        all_tariff[meter_num] = load_tariff(mpan)
+
+    summary_all, summary_night = [], []
 
     for meter_num, mpan in METERS.items():
         params   = DWELLING_PARAMS[meter_num]
-        meta     = METER_META[meter_num]
         dwelling = build_dwelling(params)
+        meta     = METER_META[meter_num]
         floor_area = params["total_floor_area_m2"]
-        true_htc   = dwelling["htc"]
-        true_tau   = dwelling["tau_hours"]
+
+        indoor = all_indoor[meter_num]
+        gas    = all_gas[meter_num]
+        elec   = all_elec[meter_num]
+        tariff = all_tariff[meter_num]
 
         print(f"\n{'='*60}")
         print(f"Meter {meter_num} — {params['label']}")
         print(f"{'='*60}")
-        print(f"  True HTC : {true_htc:.1f} W/K    True tau : {true_tau:.1f} h")
+        print(f"  True HTC : {dwelling['htc']:.1f} W/K    True tau : {dwelling['tau_hours']:.1f} h")
+        print(f"  Indoor   : {len(indoor):,} periods    Gas : {len(gas):,} periods")
 
-        # Load data
-        indoor = load_indoor(meter_num)
-        gas    = load_consumption(mpan, "gas",         REGRESSION_START, REGRESSION_END)
-        elec   = load_consumption(mpan, "electricity", WINTER_START,     WINTER_END)
-        tariff = load_tariff(mpan)
-        default_elec = ELEC_RATE_P_KWH
+        # --- All-hours pass ---
+        r_all = analyse_meter(meter_num, mpan, indoor, gas, elec, tariff,
+                              overnight_only=False)
+        if r_all:
+            summary_all.append(r_all)
+            err = (r_all["fit_tau"] - r_all["true_tau"]) / r_all["true_tau"] * 100
+            print(f"\n  [ALL hours]  events={r_all['n_events']}  "
+                  f"tau={r_all['fit_tau']:.1f}h ({err:+.1f}%)  "
+                  f"HLC={r_all['fit_htc']:.1f} W/K  band={r_all['epc_fitted']}  "
+                  f"gap={r_all['gap_pct']:+.1f}%")
+        else:
+            summary_all.append(None)
+            print("  [ALL hours]  insufficient events")
 
-        print(f"  Indoor   : {len(indoor):,} periods")
-        print(f"  Gas      : {len(gas):,} periods")
+        # Write events CSV from all-hours pass
+        events_all = find_free_cooling_events(indoor, overnight_only=False)
+        write_events_csv(meter_num, [fit_tau(ev) for ev in events_all])
 
-        # --- Service #13: detect events and fit tau ---
-        events = find_free_cooling_events(indoor)
-        fits   = [fit_tau(ev) for ev in events]
-        good   = [f for f in fits if f]
-        write_events_csv(meter_num, fits)
+        # --- Overnight-only pass ---
+        r_night = analyse_meter(meter_num, mpan, indoor, gas, elec, tariff,
+                                overnight_only=True)
+        if r_night:
+            summary_night.append(r_night)
+            err = (r_night["fit_tau"] - r_night["true_tau"]) / r_night["true_tau"] * 100
+            print(f"  [OVERNIGHT]  events={r_night['n_events']}  "
+                  f"tau={r_night['fit_tau']:.1f}h ({err:+.1f}%)  "
+                  f"HLC={r_night['fit_htc']:.1f} W/K  band={r_night['epc_fitted']}  "
+                  f"gap={r_night['gap_pct']:+.1f}%")
+        else:
+            summary_night.append(None)
+            print("  [OVERNIGHT]  insufficient events")
 
-        print(f"\n  [#13] Free cooling events: {len(events)}  "
-              f"good fits: {len(good)}")
-
-        tau_agg = aggregate_tau(good)
-        if tau_agg is None:
-            print("  WARNING: insufficient good fits for tau aggregate")
-            summary.append({"m": meter_num, "status": "insufficient_data"})
-            continue
-
-        print(f"  [#13] tau fitted  : {tau_agg['tau_hours']:.1f} h "
-              f"(95% CI {tau_agg['tau_95ci_low']:.1f}–{tau_agg['tau_95ci_high']:.1f})")
-        print(f"  [#13] tau true    : {true_tau:.1f} h  "
-              f"error: {(tau_agg['tau_hours'] - true_tau)/true_tau*100:+.1f}%")
-
-        # --- HLC ---
-        hlc_result = calculate_hlc(tau_agg, floor_area,
-                                   meta["property_type"], meta["build_era"])
-        band_result = hlc_to_epc_band(hlc_result["hlc_per_m2"])
-        print(f"  [#13] HLC fitted  : {hlc_result['hlc_w_per_k']:.1f} W/K  "
-              f"({hlc_result['hlc_per_m2']:.3f} W/K/m2)  -> EPC band {band_result['band']}")
-
-        # --- Service #13a: performance gap vs true model HTC ---
-        gap = performance_gap(hlc_result, true_htc)
-        true_band = hlc_to_epc_band(true_htc / floor_area)
-        print(f"  [#13a] True HLC   : {true_htc:.1f} W/K  "
-              f"({true_htc/floor_area:.3f} W/K/m2)  -> EPC band {true_band['band']}")
-        print(f"  [#13a] Gap        : {gap['gap_pct']:+.1f}%  ({gap['interpretation']})")
-
-        # --- Service #13b: rolling monthly EPC ---
+        # --- Service #13b rolling EPC (overnight) ---
         epc_series = rolling_epc(indoor, dwelling, floor_area,
-                                 meta["property_type"], meta["build_era"])
+                                 meta["property_type"], meta["build_era"],
+                                 overnight_only=True)
         write_rolling_epc_csv(meter_num, epc_series)
-        valid_months = [s for s in epc_series if s["band"]]
-        if valid_months:
-            bands      = [s["band"] for s in valid_months]
-            band_counts = {b: bands.count(b) for b in sorted(set(bands))}
-            print(f"  [#13b] Rolling EPC: {len(valid_months)} months  "
-                  f"bands: {band_counts}")
+        valid = [s for s in epc_series if s["band"]]
+        if valid:
+            bands = [s["band"] for s in valid]
+            bc = {b: bands.count(b) for b in sorted(set(bands))}
+            print(f"  [#13b OVN]   rolling EPC: {len(valid)} months  bands: {bc}")
 
-        # --- Service #14: comfort vs cost ---
+        # --- Service #14 comfort vs cost (unchanged — not affected by event filter) ---
         comfort = comfort_cost_report(
-            indoor, elec, gas, tariff, default_elec, GAS_RATE_P_KWH,
+            indoor, elec, gas, tariff, ELEC_RATE_P_KWH, GAS_RATE_P_KWH,
             WINTER_START, WINTER_END
         )
-        print(f"\n  [#14] Window: {WINTER_START} to {WINTER_END}")
-        print(f"  [#14] Total cost     : GBP {comfort['total_cost_gbp']:.2f}")
-        print(f"  [#14] Vacant cost    : GBP {comfort['vacant_cost_gbp']:.2f} "
-              f"({comfort['vacant_cost_pct']:.1f}% of total)")
-        print(f"  [#14] Comfort score  : {comfort['pct_in_comfort_zone']:.1f}% "
-              f"of occupied periods in 18-22C zone")
-        print(f"  [#14] Cold periods   : {comfort['cold_occupied_periods']} "
-              f"(occupied, below 18C)")
-        if comfort["health_risk_periods"]:
-            print(f"  [#14] HEALTH RISK    : {comfort['health_risk_periods']} "
-                  f"periods below 16C while occupied")
+        print(f"\n  [#14] Total cost GBP {comfort['total_cost_gbp']:.2f}  "
+              f"vacant {comfort['vacant_cost_pct']:.1f}%  "
+              f"comfort {comfort['pct_in_comfort_zone']:.1f}%  "
+              f"health risk {comfort['health_risk_periods']} periods")
 
-        summary.append({
-            "m":           meter_num,
-            "label":       params["label"],
-            "true_htc":    true_htc,
-            "true_tau":    true_tau,
-            "fit_tau":     tau_agg["tau_hours"],
-            "fit_htc":     hlc_result["hlc_w_per_k"],
-            "gap_pct":     gap["gap_pct"],
-            "epc_true":    true_band["band"],
-            "epc_fitted":  band_result["band"],
-            "n_events":    len(good),
-            "comfort_pct": comfort["pct_in_comfort_zone"],
-            "vacant_pct":  comfort["vacant_cost_pct"],
-            "cost_gbp":    comfort["total_cost_gbp"],
-        })
+    # --- Summary tables ---
+    print_summary_table(summary_all,
+        f"ALL-HOURS EVENTS  (regression {REGRESSION_START} to {REGRESSION_END})")
+    print_summary_table(summary_night,
+        f"OVERNIGHT-ONLY EVENTS 23:00-05:30  (regression {REGRESSION_START} to {REGRESSION_END})")
 
-    # --- Cross-meter summary table ---
-    print(f"\n\n{'='*90}")
-    print(f"SUMMARY TABLE   (regression window {REGRESSION_START} to {REGRESSION_END})")
-    print(f"{'='*90}")
-    header = (f"{'M':<3} {'Label':<30} {'HTC true':>8} {'HTC fit':>7} "
-              f"{'Gap%':>6} {'Band':>5} {'Events':>7} "
-              f"{'Comfort%':>9} {'Vacant%':>8} {'Cost GBP':>9}")
-    print(header)
-    print("-" * 90)
-    for r in summary:
-        if "status" in r:
-            print(f"{r['m']:<3} insufficient data")
+    # --- Comparison table ---
+    w = 80
+    print(f"\n\n{'='*w}")
+    print("COMPARISON: all-hours vs overnight-only")
+    print(f"{'='*w}")
+    hdr = (f"{'M':<3} {'Label':<30} {'tau all':>7} {'tau ovn':>7} "
+           f"{'err all':>7} {'err ovn':>7} {'band all':>8} {'band ovn':>8}")
+    print(hdr)
+    print("-" * w)
+    for ra, rn in zip(summary_all, summary_night):
+        if ra is None or rn is None:
             continue
-        print(f"{r['m']:<3} {r['label']:<30} "
-              f"{r['true_htc']:>8.1f} {r['fit_htc']:>7.1f} "
-              f"{r['gap_pct']:>+6.1f}% {r['epc_fitted']:>5}  "
-              f"{r['n_events']:>7} "
-              f"{r['comfort_pct']:>8.1f}% {r['vacant_pct']:>7.1f}% "
-              f"{r['cost_gbp']:>9.2f}")
-    print("=" * 90)
+        err_a = (ra["fit_tau"] - ra["true_tau"]) / ra["true_tau"] * 100
+        err_n = (rn["fit_tau"] - rn["true_tau"]) / rn["true_tau"] * 100
+        print(f"{ra['m']:<3} {ra['label']:<30} "
+              f"{ra['fit_tau']:>7.1f} {rn['fit_tau']:>7.1f} "
+              f"{err_a:>+7.1f}% {err_n:>+7.1f}% "
+              f"{ra['epc_fitted']:>8} {rn['epc_fitted']:>8}")
+    print("=" * w)
 
-    # Write summary CSV
+    # Write summary CSVs
     fields = ["m", "label", "true_htc", "true_tau", "fit_tau", "fit_htc",
-              "gap_pct", "epc_true", "epc_fitted", "n_events",
-              "comfort_pct", "vacant_pct", "cost_gbp"]
-    with open("data/tier4_summary.csv", "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
-        w.writeheader()
-        w.writerows(r for r in summary if "status" not in r)
-    print(f"\nWritten: data/tier4_summary.csv")
+              "gap_pct", "epc_true", "epc_fitted", "n_events"]
+    for tag, rows in [("all", summary_all), ("overnight", summary_night)]:
+        path = f"data/tier4_summary_{tag}.csv"
+        with open(path, "w", newline="") as f:
+            w2 = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
+            w2.writeheader()
+            w2.writerows(r for r in rows if r)
+    print(f"\nWritten: data/tier4_summary_all.csv")
+    print(f"         data/tier4_summary_overnight.csv")
     for n in METERS:
         print(f"         data/m{n}_tier4_events.csv")
         print(f"         data/m{n}_tier4_rolling_epc.csv")
