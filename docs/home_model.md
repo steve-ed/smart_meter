@@ -468,7 +468,7 @@ The default dwelling parameters are chosen to be physically plausible, not calib
 
 For testing purposes, the synthetic data allows end-to-end validation of the Tier 4 pipeline:
 
-1. Run `home_model.py` → generates `data/m{n}_indoor_temp.csv`
+1. Run `python py/home_model.py` → generates `data/m{n}_indoor_temp.csv`
 2. Run the Tier 4 free-cooling event detector on the synthetic data
 3. Fit τ from detected events
 4. Compare fitted τ against the known `tau_hours` computed from the dwelling parameters
@@ -539,7 +539,13 @@ This 1.5°C drop over an 8-hour night is realistic for a thermally massive 1970s
 
 ## 9. Implementation Script
 
-The implementation lives in `home_model.py`. It:
+The implementation lives in `py/home_model.py`. Run from the project root:
+
+```bash
+python py/home_model.py
+```
+
+It:
 
 1. Loads `data/consumption.csv` and `data/weather.csv`
 2. For each of the 5 meters, looks up `DWELLING_PARAMS[meter_num]`
