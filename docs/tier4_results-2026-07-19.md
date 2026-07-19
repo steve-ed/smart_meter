@@ -119,3 +119,56 @@ Output files:
 - `data/tier4_summary.csv`
 - `data/m{1–5}_tier4_events.csv`
 - `data/m{1–5}_tier4_rolling_epc.csv`
+
+---
+
+## Real-world disturbances affecting the comfort score
+
+The comfort score measures the fraction of occupied time (07:00–22:30) where indoor temperature is in the 18–22°C zone. Disturbances fall into two categories: things that make the **measured temperature misleading**, and things that cause **genuine temperature excursions** the occupant actually feels.
+
+### Sensor reads a temperature the occupant doesn't experience
+
+**Spatial mismatch**
+- Thermostat in hallway reads 2–4°C colder than the living room being occupied — score understates comfort
+- A sensor near a radiator or in a south-facing room overstates it
+- Single-point measurement misses room-to-room variation: a bedroom at 14°C while the living room is 20°C scores as comfortable, but the occupant sleeping in the bedroom is at health-risk temperature
+
+**Thermal stratification**
+- In poorly insulated rooms with high ceilings, floor-level temperature can be 3–5°C below head height — comfort at sensor height may not reflect occupant experience at floor or bed level
+
+**Sensor self-heating and drift**
+- Constant +0.2–0.5°C offset inflates the score slightly; drift over months skews trend analysis
+
+### Genuine temperature excursions
+
+**Occupancy schedule mismatch**
+- The 07:00–22:30 occupied window is fixed in the model; real occupancy varies daily
+- A retired household occupied until 23:30 has health-risk periods recorded as unoccupied (score too optimistic)
+- A commuter household empty until 18:00 includes cold morning periods as occupied (score too pessimistic)
+
+**Boiler and heating system failures**
+- A boiler fault causing a 12-hour outage on a cold night produces a cluster of health-risk periods that are real events but one-off rather than structural, disproportionately distorting a weekly score
+
+**Heating schedule misalignment**
+- Pre-programmed timers set for an old routine register returning-home-to-cold-house time as occupied health-risk even though the occupant has just arrived
+- Heating left on while away inflates occupied comfort score using energy spent on an empty building
+
+**Thermal overshoot and undershoot**
+- Poorly tuned thermostatic controls oscillate above and below setpoint; a property with a mean of 20°C can spend significant time above 22°C and below 18°C in alternation — the score penalises both
+
+**Extreme cold weather**
+- During a cold snap the boiler may not keep pace with heat loss even running continuously; comfort score legitimately drops but comparing scores across winters without weather-normalising penalises colder years unfairly
+
+**Ventilation behaviour**
+- Windows left open for air quality during mild spells drops temperature below 18°C and scores as a cold period even though the occupant chose to open the window
+
+**Overheating in shoulder seasons**
+- Late spring and early autumn solar gain can push temperature above 22°C; the model correctly counts these as outside the comfort zone but may surprise occupants who feel comfortable at 23°C
+
+### Implications for the algorithm
+
+**Occupancy detection from electricity data** is the highest-impact fix: a sustained base-load signature (TV, lighting) during the occupied window confirms occupation; an anomalously low load suggests the household is actually out. This is already in scope as a Tier 3 feature and would directly improve comfort score reliability without an additional sensor.
+
+**Multi-zone temperature** is the second biggest improvement — even a single additional bedroom sensor alongside the thermostat would catch the most common mismatch (warm living room / cold bedroom at night) that a single-point score misses entirely.
+
+**Weather normalisation** is needed before comparing comfort scores across winters or between properties in different climates — expressing cold-period counts relative to heating degree days removes the year-to-year weather signal and isolates building and behavioural performance.
