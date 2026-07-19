@@ -5,6 +5,7 @@ Services implemented:
   #13  Free-cooling event detection and tau / HLC fitting
   #13a Measured vs modelled (SAP) performance gap
   #13b Monthly rolling dynamic EPC band
+  #13c Heating-phase OLS regression: Q = HLC×ΔT + C×dT/dt (no capacitance lookup)
   #14  Comfort vs cost weekly report
 
 Inputs:
@@ -85,6 +86,15 @@ MIN_DECAY_PERIODS    = 4      # minimum event length (2 hours)
 MAX_OUTDOOR_VARY_C   = 2.0    # discard events with unstable outdoor temperature
 R2_THRESHOLD         = 0.85   # minimum R² to accept a tau fit
 DT_HOURS             = 0.5
+
+# Heating-phase regression constants
+BOILER_EFFICIENCY      = 0.89
+MIN_HEATING_RUN        = 4      # consecutive boiler-on periods required
+SKIP_STARTUP_PERIODS   = 1      # drop first period of each run (transient)
+MIN_HEAT_KWH           = 0.05   # ignore near-zero gas periods (DHW noise)
+T_SETPOINT_MARGIN      = 0.5    # exclude periods within this of setpoint (thermostat clamping)
+T_SETPOINT             = 20.0
+SUMMER_MONTHS          = {5, 6, 7, 8, 9}
 
 # Overnight window: 23:00–05:30 (periods 46, 47, 0–11)
 # Excludes solar gain, cooking, occupancy metabolic heat
@@ -481,6 +491,124 @@ def comfort_cost_report(indoor: dict[str, dict],
 
 
 # ---------------------------------------------------------------------------
+# Service #13c — Heating-phase HLC regression
+# ---------------------------------------------------------------------------
+
+def find_heating_runs(indoor: dict[str, dict],
+                      gas: dict[str, float],
+                      base_load_kwh: float) -> list[list[dict]]:
+    """
+    Return consecutive boiler-on runs (≥ MIN_HEATING_RUN periods, winter only).
+    Each entry carries timestamp, indoor/outdoor temps, and net space-heating kWh.
+    """
+    timestamps = sorted(set(indoor) & set(gas))
+    runs, current = [], []
+
+    for ts in timestamps:
+        p     = indoor[ts]
+        month = int(ts[5:7])
+
+        if month in SUMMER_MONTHS or p["boiler_on"] == 0:
+            if len(current) >= MIN_HEATING_RUN:
+                runs.append(current)
+            current = []
+            continue
+
+        gas_heat = max(gas.get(ts, 0.0) - base_load_kwh, 0.0)
+        current.append({
+            "timestamp": ts,
+            "temp_c":    p["temp_c"],
+            "outdoor_c": p["outdoor_c"],
+            "gas_heat":  gas_heat,
+        })
+
+    if len(current) >= MIN_HEATING_RUN:
+        runs.append(current)
+    return runs
+
+
+def heating_phase_regression(runs: list[list[dict]]) -> dict | None:
+    """
+    OLS on all post-transient heating periods across all runs:
+
+        Q_boiler_W = HLC × (T_in - T_out) + C × dT/dt
+
+    No intercept — physically motivated heat balance.
+    Returns HLC (W/K), C (Wh/K), tau (h), R², n_points, n_runs.
+    """
+    xs1, xs2, ys = [], [], []   # ΔT (°C), dT/dt (°C/h), Q (W)
+
+    for run in runs:
+        for i in range(SKIP_STARTUP_PERIODS + 1, len(run)):
+            curr = run[i]
+            prev = run[i - 1]
+
+            if curr["gas_heat"] < MIN_HEAT_KWH:
+                continue
+            # Exclude thermostat-clamped periods: boiler modulating near setpoint
+            # gives Q >> HLC*dT with dT/dt ~= 0, biasing HLC upward
+            if curr["temp_c"] >= T_SETPOINT - T_SETPOINT_MARGIN:
+                continue
+
+            q_w    = curr["gas_heat"] * BOILER_EFFICIENCY * 2000   # kWh/period → W
+            delta_t = curr["temp_c"] - curr["outdoor_c"]
+            dt_dt  = (curr["temp_c"] - prev["temp_c"]) / DT_HOURS  # °C/h
+
+            if delta_t <= 0:
+                continue
+
+            xs1.append(delta_t)
+            xs2.append(dt_dt)
+            ys.append(q_w)
+
+    n = len(xs1)
+    if n < 20:
+        return None
+
+    # Normal equations for 2-predictor OLS without intercept
+    # [s11 s12] [HLC]   [sy1]
+    # [s12 s22] [C  ] = [sy2]
+    s11 = sum(x * x for x in xs1)
+    s12 = sum(x * y for x, y in zip(xs1, xs2))
+    s22 = sum(x * x for x in xs2)
+    sy1 = sum(q * x for q, x in zip(ys, xs1))
+    sy2 = sum(q * x for q, x in zip(ys, xs2))
+
+    det = s11 * s22 - s12 * s12
+    if abs(det) < 1e-6:
+        return None
+
+    hlc   = (sy1 * s22 - sy2 * s12) / det
+    c_wh_k = (sy2 * s11 - sy1 * s12) / det
+
+    if hlc <= 0 or c_wh_k <= 0:
+        return None
+
+    y_mean = sum(ys) / n
+    y_pred = [hlc * x1 + c_wh_k * x2 for x1, x2 in zip(xs1, xs2)]
+    ss_tot = sum((y - y_mean) ** 2 for y in ys)
+    ss_res = sum((y - yp) ** 2 for y, yp in zip(ys, y_pred))
+    r2     = 1.0 - ss_res / ss_tot if ss_tot > 1e-12 else 0.0
+
+    tau = c_wh_k / hlc
+
+    return {
+        "hlc_w_per_k":  round(hlc, 1),
+        "c_wh_k":       round(c_wh_k, 0),
+        "tau_hours":    round(tau, 1),
+        "r_squared":    round(r2, 4),
+        "n_points":     n,
+        "n_runs":       len(runs),
+    }
+
+
+def estimate_base_load(gas: dict[str, float]) -> float:
+    """Median gas kWh/period in summer months (May–Sep)."""
+    vals = sorted(v for ts, v in gas.items() if int(ts[5:7]) in SUMMER_MONTHS)
+    return vals[len(vals) // 2] if vals else 0.0
+
+
+# ---------------------------------------------------------------------------
 # Output helpers
 # ---------------------------------------------------------------------------
 
@@ -583,7 +711,7 @@ def main():
                                                  WINTER_START, WINTER_END)
         all_tariff[meter_num] = load_tariff(mpan)
 
-    summary_all, summary_night = [], []
+    summary_all, summary_night, summary_heat = [], [], []
 
     for meter_num, mpan in METERS.items():
         params   = DWELLING_PARAMS[meter_num]
@@ -645,6 +773,47 @@ def main():
             bc = {b: bands.count(b) for b in sorted(set(bands))}
             print(f"  [#13b OVN]   rolling EPC: {len(valid)} months  bands: {bc}")
 
+        # --- Service #13c: heating-phase regression ---
+        base_load = estimate_base_load(gas)
+        h_runs    = find_heating_runs(indoor, gas, base_load)
+        h_result  = heating_phase_regression(h_runs)
+        if h_result:
+            true_htc   = dwelling["htc"]
+            true_c     = dwelling["c_wh_k"]
+            true_tau   = dwelling["tau_hours"]
+            gap_hlc    = (h_result["hlc_w_per_k"] - true_htc) / true_htc * 100
+            gap_c      = (h_result["c_wh_k"]      - true_c)   / true_c   * 100
+            gap_tau    = (h_result["tau_hours"]    - true_tau) / true_tau * 100
+            h_band     = hlc_to_epc_band(h_result["hlc_w_per_k"] / floor_area)
+            print(f"\n  [#13c HEAT]  runs={h_result['n_runs']}  pts={h_result['n_points']}  "
+                  f"R²={h_result['r_squared']:.3f}")
+            print(f"  [#13c HEAT]  HLC={h_result['hlc_w_per_k']:.1f} W/K "
+                  f"(true={true_htc:.1f}, err={gap_hlc:+.1f}%)  "
+                  f"band={h_band['band']}")
+            print(f"  [#13c HEAT]  C  ={h_result['c_wh_k']:.0f} Wh/K "
+                  f"(true={true_c:.0f}, err={gap_c:+.1f}%)")
+            print(f"  [#13c HEAT]  tau={h_result['tau_hours']:.1f} h "
+                  f"(true={true_tau:.1f}, err={gap_tau:+.1f}%)")
+        else:
+            h_result = {}
+            print("\n  [#13c HEAT]  insufficient heating runs")
+
+        summary_heat.append({
+            "m":        meter_num,
+            "label":    params["label"],
+            "true_htc": dwelling["htc"],
+            "true_c":   dwelling["c_wh_k"],
+            "true_tau": dwelling["tau_hours"],
+            **({
+                "heat_hlc":  h_result["hlc_w_per_k"],
+                "heat_c":    h_result["c_wh_k"],
+                "heat_tau":  h_result["tau_hours"],
+                "heat_r2":   h_result["r_squared"],
+                "heat_runs": h_result["n_runs"],
+                "heat_pts":  h_result["n_points"],
+            } if h_result else {}),
+        })
+
         # --- Service #14 comfort vs cost (unchanged — not affected by event filter) ---
         comfort = comfort_cost_report(
             indoor, elec, gas, tariff, ELEC_RATE_P_KWH, GAS_RATE_P_KWH,
@@ -681,6 +850,32 @@ def main():
               f"{ra['epc_fitted']:>8} {rn['epc_fitted']:>8}")
     print("=" * w)
 
+    # --- Heating-phase summary table ---
+    w = 100
+    print(f"\n\n{'='*w}")
+    print(f"HEATING-PHASE REGRESSION (#13c)  -- Q = HLC*dT + C*dT/dt")
+    print(f"{'='*w}")
+    hdr = (f"{'M':<3} {'Label':<30} {'HLC true':>8} {'HLC heat':>8} {'err%':>6} "
+           f"{'C true':>8} {'C heat':>8} {'err%':>6} "
+           f"{'tau true':>8} {'tau heat':>8} {'err%':>6} {'R²':>6} {'Band':>5}")
+    print(hdr)
+    print("-" * w)
+    for r in summary_heat:
+        if "heat_hlc" not in r:
+            print(f"{r['m']:<3} {r['label']:<30}  insufficient data")
+            continue
+        floor_area = DWELLING_PARAMS[r["m"]]["total_floor_area_m2"]
+        hlc_err  = (r["heat_hlc"] - r["true_htc"]) / r["true_htc"] * 100
+        c_err    = (r["heat_c"]   - r["true_c"])   / r["true_c"]   * 100
+        tau_err  = (r["heat_tau"] - r["true_tau"])  / r["true_tau"]  * 100
+        band     = hlc_to_epc_band(r["heat_hlc"] / floor_area)["band"]
+        print(f"{r['m']:<3} {r['label']:<30} "
+              f"{r['true_htc']:>8.1f} {r['heat_hlc']:>8.1f} {hlc_err:>+6.1f}% "
+              f"{r['true_c']:>8.0f} {r['heat_c']:>8.0f} {c_err:>+6.1f}% "
+              f"{r['true_tau']:>8.1f} {r['heat_tau']:>8.1f} {tau_err:>+6.1f}% "
+              f"{r['heat_r2']:>6.3f} {band:>5}")
+    print("=" * w)
+
     # Write summary CSVs
     fields = ["m", "label", "true_htc", "true_tau", "fit_tau", "fit_htc",
               "gap_pct", "epc_true", "epc_fitted", "n_events"]
@@ -690,8 +885,17 @@ def main():
             w2 = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
             w2.writeheader()
             w2.writerows(r for r in rows if r)
+
+    heat_fields = ["m", "label", "true_htc", "true_c", "true_tau",
+                   "heat_hlc", "heat_c", "heat_tau", "heat_r2", "heat_runs", "heat_pts"]
+    with open("data/tier4_summary_heating.csv", "w", newline="") as f:
+        w2 = csv.DictWriter(f, fieldnames=heat_fields, extrasaction="ignore")
+        w2.writeheader()
+        w2.writerows(summary_heat)
+
     print(f"\nWritten: data/tier4_summary_all.csv")
     print(f"         data/tier4_summary_overnight.csv")
+    print(f"         data/tier4_summary_heating.csv")
     for n in METERS:
         print(f"         data/m{n}_tier4_events.csv")
         print(f"         data/m{n}_tier4_rolling_epc.csv")
