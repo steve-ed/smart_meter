@@ -109,6 +109,57 @@ EPC band margins in τ-space are typically 25–50%, so a ±5% CI is sufficient 
 
 ---
 
+## Service #13c — Heating-phase OLS regression
+
+### Method
+
+During a heating event the boiler output and indoor temperature are both known, giving both sides of the heat balance simultaneously:
+
+```
+Q_boiler (W) = HLC × (T_in - T_out) + C × dT/dt
+```
+
+This is fitted as a two-predictor OLS regression across all post-transient heating periods in the 18-month window. It recovers HLC and C independently in a single pass — no capacitance lookup table required.
+
+**Critical filter — thermostat-clamped periods:** periods where `T_in >= setpoint − 0.5°C` are excluded. At these periods the boiler is maintaining temperature rather than raising it, so `dT/dt ≈ 0` while Q is large; including them attributes maintenance power entirely to the HLC×ΔT term, inflating HLC by 20–189% depending on how much time the thermostat spends active.
+
+### Results
+
+| M | Dwelling | HLC true | HLC heat | err | C true | C heat | err | τ err | R² | Band |
+|---|----------|----------|----------|-----|--------|--------|-----|-------|----|------|
+| 1 | 1970s semi | 225.4 | 225.4 | +0.0% | 13,600 | 13,487 | −0.8% | −0.9% | 1.000 | F |
+| 2 | 1990s semi | 176.8 | 176.8 | −0.0% | 14,400 | 14,310 | −0.6% | −0.7% | 1.000 | E |
+| 3 | 2005 detached | 163.5 | 163.5 | −0.0% | 20,150 | 20,068 | −0.4% | −0.4% | 1.000 | C |
+| 4 | Pre-1919 terraced | 338.0 | 338.0 | +0.0% | 16,500 | 16,331 | −1.0% | −1.1% | 1.000 | G |
+| 5 | 2015 semi | 95.3 | 95.3 | +0.0% | 12,760 | 12,712 | −0.4% | −0.4% | 1.000 | C |
+
+All five meters recover HLC within 0.1% and C within 1.1% of ground truth. This is substantially better than the cooling-curve method (which had 4–10% HLC gaps driven by the capacitance lookup table assumption) because C is measured directly rather than assumed.
+
+### Comparison with cooling-curve results
+
+| M | Dwelling | Cooling HLC err | Heating HLC err | Cooling C source | Heating C err |
+|---|----------|-----------------|-----------------|------------------|---------------|
+| 1 | 1970s semi | +9.6% | **+0.0%** | lookup (175 Wh/K/m²) | −0.8% |
+| 2 | 1990s semi | −8.9% | **−0.0%** | lookup (145 Wh/K/m²) | −0.6% |
+| 3 | 2005 detached | +0.1% | **−0.0%** | lookup (155 Wh/K/m²) | −0.4% |
+| 4 | Pre-1919 terraced | −3.9% | **+0.0%** | lookup (210 Wh/K/m²) | −1.0% |
+| 5 | 2015 semi | +0.4% | **+0.0%** | lookup (145 Wh/K/m²) | −0.4% |
+
+The heating regression eliminates the lookup table bias. On real data the advantage will be smaller (boiler efficiency uncertainty ~±5% maps directly into HLC error) but the method still removes the largest source of systematic error in the cooling approach.
+
+### Combined approach
+
+Running both methods on the same property gives a cross-validation check: if HLC from heating and HLC from cooling agree within ~5%, the system is self-consistent. If they diverge it flags a problem — likely the boiler efficiency assumption (heating) or the capacitance lookup (cooling). The best estimate of both HLC and C is then the heating regression result, with the cooling τ as a redundant check on τ = C/HLC.
+
+### Real-world caveats
+
+- **Boiler efficiency uncertainty** (~±5%) maps directly to ±5% on HLC — the dominant error source for the heating method, equivalent to the capacitance lookup error for the cooling method
+- **DHW contamination** — summer base-load subtraction handles this but errors in the base-load estimate introduce a constant offset into Q_boiler
+- **Boiler cycling** — on a 30-min meter a short on/off cycle produces a mixed reading; the `gas_heat < 0.05 kWh` filter rejects the noisiest periods but some cycling bias remains
+- **Thermal lag** — the first period of each run is dropped (startup transient) but longer ramp-up in high-mass properties (m4 solid brick) may require skipping more periods
+
+---
+
 ## Run details
 
 ```
@@ -116,7 +167,9 @@ python py/tier4_analysis.py   # run from project root
 ```
 
 Output files:
-- `data/tier4_summary.csv`
+- `data/tier4_summary_all.csv` — cooling curve, all hours
+- `data/tier4_summary_overnight.csv` — cooling curve, overnight only
+- `data/tier4_summary_heating.csv` — heating phase regression
 - `data/m{1–5}_tier4_events.csv`
 - `data/m{1–5}_tier4_rolling_epc.csv`
 
