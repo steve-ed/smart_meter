@@ -197,3 +197,79 @@ def test_heating_contamination_overnight_not_labelled_vacant():
     assert all(lbl != 'VACANT' for lbl in overnight_labels), (
         f"Overnight periods should not be VACANT when heating_contaminated=True, got {overnight_labels}"
     )
+
+
+# --- VACANT detection ---
+
+
+def test_fewer_than_6_at_floor_periods_are_unknown():
+    kwh = _periods(0.10)
+    for i in range(20, 25):
+        kwh[i] = 0.03
+    labels = label_sequence(kwh, floor_kwh=0.03, floor_mad=0.005)
+    for i in range(20, 25):
+        assert labels[i]['occupied_label'] == 'UNKNOWN', f"period {i} should be UNKNOWN"
+
+
+def test_six_consecutive_at_floor_back_labels_all_vacant():
+    kwh = _periods(0.10)
+    for i in range(20, 26):
+        kwh[i] = 0.03
+    labels = label_sequence(kwh, floor_kwh=0.03, floor_mad=0.005)
+    for i in range(20, 26):
+        assert labels[i]['occupied_label'] == 'VACANT', f"period {i} should be VACANT"
+        assert labels[i]['label_source'] == 'elec_at_floor'
+
+
+def test_vacant_continues_after_6_periods():
+    kwh = _periods(0.10)
+    for i in range(20, 38):
+        kwh[i] = 0.03
+    labels = label_sequence(kwh, floor_kwh=0.03, floor_mad=0.005)
+    for i in range(20, 38):
+        assert labels[i]['occupied_label'] == 'VACANT'
+
+
+def test_hard_threshold_breaks_vacant_run_and_requires_new_accumulation():
+    # Use a short sequence: 10 at-floor (establishes VACANT), 1 hard spike, then
+    # exactly 5 at-floor (not enough to re-establish VACANT → all UNKNOWN).
+    kwh = [0.03] * 10 + [0.10] + [0.03] * 5
+    labels = label_sequence(kwh, floor_kwh=0.03, floor_mad=0.005)
+    assert labels[10]['occupied_label'] == 'OCCUPIED'   # hard spike
+    for i in range(11, 16):
+        assert labels[i]['occupied_label'] == 'UNKNOWN', f"period {i} should be UNKNOWN (only 5 new at-floor)"
+
+
+def test_single_soft_period_does_not_break_vacant():
+    kwh = _periods(0.03)
+    kwh[20] = 0.06
+    labels = label_sequence(kwh, floor_kwh=0.03, floor_mad=0.005)
+    assert labels[20]['occupied_label'] == 'UNKNOWN'
+    assert labels[21]['occupied_label'] == 'VACANT'
+
+
+def test_two_consecutive_soft_breaks_vacant():
+    # 10 at-floor (VACANT established), 2 soft (triggers OCCUPIED + resets vacant_active),
+    # then 5 at-floor (not enough to re-establish VACANT).
+    kwh = [0.03] * 10 + [0.06, 0.06] + [0.03] * 5
+    labels = label_sequence(kwh, floor_kwh=0.03, floor_mad=0.005)
+    assert labels[10]['occupied_label'] == 'OCCUPIED'
+    assert labels[11]['occupied_label'] == 'OCCUPIED'
+    for i in range(12, 17):
+        assert labels[i]['occupied_label'] == 'UNKNOWN', f"period {i} should be UNKNOWN (only 5 new at-floor)"
+
+
+def test_heating_contaminated_suppresses_overnight_vacant():
+    kwh = _periods(0.03)
+    labels = label_sequence(kwh, floor_kwh=0.03, floor_mad=0.005, heating_contaminated=True)
+    for i in range(2, 11):
+        assert labels[i]['occupied_label'] == 'UNKNOWN', f"overnight period {i} must not be VACANT"
+    for i in range(11, 17):
+        assert labels[i]['occupied_label'] == 'VACANT'
+
+
+def test_at_floor_field_reflects_raw_value_regardless_of_contamination():
+    kwh = _periods(0.03)
+    labels = label_sequence(kwh, floor_kwh=0.03, floor_mad=0.005, heating_contaminated=True)
+    for i in range(2, 11):
+        assert labels[i]['at_floor'] is True
