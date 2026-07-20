@@ -4,8 +4,7 @@ Validate electricity-based occupancy detector across all 5 synthetic meters.
 Run from project root:
     python py/validate_occupancy.py
 
-Reports per-meter label distribution, floor statistics, and comfort score
-delta (fixed 07:00-22:30 window vs occupancy-corrected window).
+Reports per-meter label distribution and floor statistics.
 """
 
 import csv
@@ -42,8 +41,6 @@ _WEATHER_CSV     = os.path.join(_DATA_DIR, 'weather.csv')
 # ---------------------------------------------------------------------------
 
 ELEC_UTILITY  = 'electricity'
-OCCUPIED_WINDOW = frozenset(range(14, 45))   # 07:00-22:30 fixed window
-COMFORT_LOWER_C = 18.0
 
 
 # ---------------------------------------------------------------------------
