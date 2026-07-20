@@ -154,7 +154,7 @@ def label_sequence(elec_kwh, floor_kwh, floor_mad,
             'floor_source':         'overnight_bootstrap',
             'floor_stable':         True,
             'heating_contaminated': heating_contaminated,
-            'at_floor':             at_floor_raw,
+            'at_floor':             at_floor_raw,  # raw comparison; heating suppression reflected in occupied_label only
             'occupied_label':       label,
             'label_source':         label_source,
             'sustained_run':        floor_run if at_floor else (soft_run if above_soft else 0),

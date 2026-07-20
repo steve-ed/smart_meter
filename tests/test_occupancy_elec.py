@@ -127,6 +127,27 @@ def test_soft_threshold_resets_after_non_soft_period():
     assert labels[12]['occupied_label'] == 'UNKNOWN'
 
 
+def test_soft_threshold_three_consecutive_all_occupied():
+    """Three consecutive soft periods: all three must be OCCUPIED (back-label chain)."""
+    floor_kwh = 0.10
+    floor_mad = 0.005
+    soft_thresh = floor_kwh + max(0.025, 1.5 * floor_mad)
+    hard_thresh = floor_kwh + max(0.05, 3.0 * floor_mad)
+    soft_val = (soft_thresh + hard_thresh) / 2  # between soft and hard
+    kwh = [floor_kwh * 0.5, soft_val, soft_val, soft_val, floor_kwh * 0.5]
+    results = label_sequence(kwh, floor_kwh, floor_mad)
+    # Period 0: at floor → UNKNOWN (not enough floor run for VACANT)
+    assert results[0]['occupied_label'] == 'UNKNOWN'
+    # Period 1: first soft, back-labelled OCCUPIED when period 2 confirms the run
+    assert results[1]['occupied_label'] == 'OCCUPIED'
+    assert results[1]['label_source'] == 'elec_above_floor_soft'
+    # Period 2: second soft — triggers back-label; itself OCCUPIED
+    assert results[2]['occupied_label'] == 'OCCUPIED'
+    # Period 3: third soft — still OCCUPIED (soft_run >= 2)
+    assert results[3]['occupied_label'] == 'OCCUPIED'
+    assert results[3]['label_source'] == 'elec_above_floor_soft'
+
+
 def test_cold_start_hard_threshold_uses_population_floor():
     # During cold start: hard = COLD_START_FLOOR_KWH + OCCUPIED_EXCESS_KWH = 0.08
     kwh = _periods(0.02)
