@@ -331,7 +331,7 @@ if __name__ == "__main__":
 
 ```
 cd C:\Users\steve\projects\smart_meter
-python battery_analysis.py
+python py/battery_analysis.py
 ```
 
 Expected: a table with 6 rows (one per battery size). All rows likely flagged `*` — UK residential battery payback is typically 20–30 years at current tariff spreads. If the script errors, check that the `mpxn` column in `consumption.csv` is numeric vs string (the load uses `int(MPAN)` — adjust to `str` if needed).
