@@ -46,3 +46,19 @@ def compute_floor(samples):
     floor = s[idx]
     raw_mad = sorted(abs(v - floor) for v in s)[n // 2]
     return (floor, max(raw_mad, 0.005))
+
+
+# ---------------------------------------------------------------------------
+# Detection helpers
+# ---------------------------------------------------------------------------
+
+def is_heating_contaminated(overnight_median_kwh, outdoor_temp_c):
+    """True when electric heating is likely corrupting the overnight floor."""
+    return overnight_median_kwh > HEATING_GUARD_KWH and outdoor_temp_c < HEATING_GUARD_TEMP_C
+
+
+def compute_thresholds(floor_kwh, floor_mad):
+    """Return (hard_threshold_kwh, soft_threshold_kwh) for OCCUPIED detection."""
+    hard = floor_kwh + max(OCCUPIED_EXCESS_KWH, 3.0 * floor_mad)
+    soft = floor_kwh + max(OCCUPIED_SOFT_KWH,  1.5 * floor_mad)
+    return (hard, soft)
