@@ -155,3 +155,24 @@ def test_output_contains_required_fields():
         'at_floor', 'occupied_label', 'label_source', 'sustained_run',
     }
     assert required <= labels[0].keys()
+
+
+def test_heating_contamination_overnight_not_labelled_vacant():
+    """Overnight periods block floor-run accumulation when heating_contaminated=True."""
+    floor_kwh = 0.10
+    floor_mad = 0.005
+    # Build a 48-period sequence where indices 1-8 are at-floor (overnight 2-8 + one daytime)
+    # Without contamination, 8 consecutive at-floor periods would back-label all 8 as VACANT
+    full_kwh = [floor_kwh * 3.0] * 48  # default: above floor
+    for i in range(1, 9):  # periods 1-8, overlapping overnight indices 2-8
+        full_kwh[i] = floor_kwh * 0.5
+    results = label_sequence(
+        full_kwh, floor_kwh, floor_mad,
+        heating_contaminated=True, in_cold_start=False
+    )
+    # Overnight periods (2-8) should not be labelled VACANT because heating contamination
+    # suppresses at-floor accumulation during overnight periods
+    overnight_labels = [results[i]['occupied_label'] for i in range(2, 9)]
+    assert all(lbl != 'VACANT' for lbl in overnight_labels), (
+        f"Overnight periods should not be VACANT when heating_contaminated=True, got {overnight_labels}"
+    )
