@@ -304,8 +304,7 @@ def test_detector_floor_computed_at_cold_start_end():
 def test_detector_cold_start_labels_non_triggered_as_unknown():
     det = ElecOccupancyDetector()
     labels = det.add_day('2024-10-01', _periods(0.03), outdoor_temp_c=10.0)
-    non_occupied = [r for r in labels if r['occupied_label'] != 'OCCUPIED']
-    assert all(r['occupied_label'] == 'UNKNOWN' for r in non_occupied)
+    assert all(r['occupied_label'] == 'UNKNOWN' for r in labels)
 
 
 def test_detector_returns_48_periods():

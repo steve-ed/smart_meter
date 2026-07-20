@@ -241,6 +241,7 @@ class ElecOccupancyDetector:
         return labels
 
     def _update_floor(self, confirmed_vacant=None):
+        self.floor_step_change = False
         if confirmed_vacant:
             samples = [kwh for _, kwh in confirmed_vacant]
             self.floor_source = 'sensor_calibrated'
@@ -252,7 +253,7 @@ class ElecOccupancyDetector:
             # Assess stability using only the most recent week's samples
             week_n = 7 * len(OVERNIGHT_PERIODS)
             recent = self._overnight_samples[-week_n:]
-            candidate_floor, _ = compute_floor(recent)
+            candidate_floor, candidate_mad = compute_floor(recent)
 
         if self._prior_floor is not None:
             # For sensor_calibrated, compare directly; for overnight, compare recent candidate
@@ -263,16 +264,12 @@ class ElecOccupancyDetector:
                 self.floor_stable = False
                 if self._unstable_weeks >= FLOOR_STEP_WEEKS:
                     # Accept the step change using the candidate floor (new regime)
-                    accepted_floor = new_floor if confirmed_vacant else candidate_floor
-                    accepted_mad = new_mad if confirmed_vacant else compute_floor(
-                        self._overnight_samples[-(7 * len(OVERNIGHT_PERIODS)):]
-                    )[1]
-                    self.floor_kwh = accepted_floor
-                    self.floor_mad = accepted_mad
+                    self.floor_kwh = new_floor if confirmed_vacant else candidate_floor
+                    self.floor_mad = new_mad if confirmed_vacant else candidate_mad
                     self.floor_step_change = True
                     self._unstable_weeks = 0
                     self.floor_stable = True
-                    self._prior_floor = accepted_floor
+                    self._prior_floor = self.floor_kwh
                 return   # hold previous value until step change confirmed
             else:
                 self._unstable_weeks = 0
