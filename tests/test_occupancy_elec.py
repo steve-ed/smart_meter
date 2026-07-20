@@ -273,3 +273,89 @@ def test_at_floor_field_reflects_raw_value_regardless_of_contamination():
     labels = label_sequence(kwh, floor_kwh=0.03, floor_mad=0.005, heating_contaminated=True)
     for i in range(2, 11):
         assert labels[i]['at_floor'] is True
+
+
+# ---------------------------------------------------------------------------
+# ElecOccupancyDetector tests
+# ---------------------------------------------------------------------------
+
+from occupancy_elec import ElecOccupancyDetector, MIN_NIGHTS
+
+
+def test_detector_is_in_cold_start_initially():
+    det = ElecOccupancyDetector()
+    assert det.in_cold_start is True
+
+
+def test_detector_exits_cold_start_after_min_nights():
+    det = ElecOccupancyDetector()
+    for _ in range(MIN_NIGHTS):
+        det.add_day('2024-10-01', _periods(0.03), outdoor_temp_c=10.0)
+    assert det.in_cold_start is False
+
+
+def test_detector_floor_computed_at_cold_start_end():
+    det = ElecOccupancyDetector()
+    for _ in range(MIN_NIGHTS):
+        det.add_day('2024-10-01', _periods(0.04), outdoor_temp_c=10.0)
+    assert det.floor_kwh > 0.0
+
+
+def test_detector_cold_start_labels_non_triggered_as_unknown():
+    det = ElecOccupancyDetector()
+    labels = det.add_day('2024-10-01', _periods(0.03), outdoor_temp_c=10.0)
+    non_occupied = [r for r in labels if r['occupied_label'] != 'OCCUPIED']
+    assert all(r['occupied_label'] == 'UNKNOWN' for r in non_occupied)
+
+
+def test_detector_returns_48_periods():
+    det = ElecOccupancyDetector()
+    labels = det.add_day('2024-10-01', _periods(0.04), outdoor_temp_c=10.0)
+    assert len(labels) == 48
+
+
+def test_detector_unstable_floor_holds_previous_value():
+    det = ElecOccupancyDetector()
+    for _ in range(MIN_NIGHTS):
+        det.add_day('2024-10-01', _periods(0.04), outdoor_temp_c=10.0)
+    stable_floor = det.floor_kwh
+    for _ in range(7):
+        det.add_day('2024-10-15', _periods(0.20), outdoor_temp_c=10.0)
+    assert det.floor_stable is False
+    assert det.floor_kwh == pytest.approx(stable_floor)
+
+
+def test_detector_step_change_accepted_after_3_unstable_weeks():
+    det = ElecOccupancyDetector()
+    for _ in range(MIN_NIGHTS):
+        det.add_day('2024-10-01', _periods(0.04), outdoor_temp_c=10.0)
+    original_floor = det.floor_kwh
+    for _ in range(21):
+        det.add_day('2024-10-15', _periods(0.20), outdoor_temp_c=10.0)
+    assert det.floor_step_change is True
+    assert det.floor_kwh > original_floor
+
+
+def test_detector_sensor_calibrated_floor_source():
+    det = ElecOccupancyDetector()
+    for _ in range(MIN_NIGHTS):
+        det.add_day('2024-10-01', _periods(0.04), outdoor_temp_c=10.0)
+    confirmed = [(i, 0.02) for i in range(48)]
+    for _ in range(7):
+        det.add_day('2024-10-15', _periods(0.04), outdoor_temp_c=10.0,
+                    confirmed_vacant=confirmed)
+    assert det.floor_source == 'sensor_calibrated'
+
+
+def test_detector_heating_contamination_activates():
+    det = ElecOccupancyDetector()
+    for _ in range(MIN_NIGHTS):
+        det.add_day('2024-01-01', _periods(0.60), outdoor_temp_c=3.0)
+    assert det.heating_contaminated is True
+
+
+def test_detector_heating_contamination_does_not_activate_when_warm():
+    det = ElecOccupancyDetector()
+    for _ in range(MIN_NIGHTS):
+        det.add_day('2024-07-01', _periods(0.10), outdoor_temp_c=18.0)
+    assert det.heating_contaminated is False
