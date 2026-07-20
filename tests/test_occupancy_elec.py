@@ -77,3 +77,81 @@ def test_compute_thresholds_hard_always_exceeds_soft():
     for mad in [0.005, 0.01, 0.02, 0.05]:
         hard, soft = compute_thresholds(floor_kwh=0.05, floor_mad=mad)
         assert hard > soft, f"hard {hard} should exceed soft {soft} at mad={mad}"
+
+
+from occupancy_elec import label_sequence, COLD_START_FLOOR_KWH, OCCUPIED_EXCESS_KWH
+
+
+def _periods(value, count=48):
+    return [value] * count
+
+
+def test_hard_threshold_single_period_occupied():
+    # floor=0.03, hard=0.08; one period at 0.10 → immediate OCCUPIED
+    kwh = _periods(0.02)
+    kwh[10] = 0.10
+    labels = label_sequence(kwh, floor_kwh=0.03, floor_mad=0.005)
+    assert labels[10]['occupied_label'] == 'OCCUPIED'
+    assert labels[10]['label_source'] == 'elec_above_floor_hard'
+
+
+def test_soft_threshold_single_period_is_unknown():
+    # One period above soft (0.055) but below hard (0.08) → UNKNOWN (pending)
+    kwh = _periods(0.02)
+    kwh[10] = 0.06
+    labels = label_sequence(kwh, floor_kwh=0.03, floor_mad=0.005)
+    assert labels[10]['occupied_label'] == 'UNKNOWN'
+    assert labels[10]['label_source'] is None  # pending marker cleaned up
+
+
+def test_soft_threshold_two_consecutive_both_occupied():
+    # Two consecutive above-soft → both back-labelled OCCUPIED
+    kwh = _periods(0.02)
+    kwh[10] = 0.06
+    kwh[11] = 0.06
+    labels = label_sequence(kwh, floor_kwh=0.03, floor_mad=0.005)
+    assert labels[10]['occupied_label'] == 'OCCUPIED'
+    assert labels[11]['occupied_label'] == 'OCCUPIED'
+    assert labels[10]['label_source'] == 'elec_above_floor_soft'
+    assert labels[11]['label_source'] == 'elec_above_floor_soft'
+
+
+def test_soft_threshold_resets_after_non_soft_period():
+    # above-soft, gap, above-soft — each individual soft period is UNKNOWN
+    kwh = _periods(0.02)
+    kwh[10] = 0.06
+    # kwh[11] stays at 0.02 (gap)
+    kwh[12] = 0.06
+    labels = label_sequence(kwh, floor_kwh=0.03, floor_mad=0.005)
+    assert labels[10]['occupied_label'] == 'UNKNOWN'
+    assert labels[12]['occupied_label'] == 'UNKNOWN'
+
+
+def test_cold_start_hard_threshold_uses_population_floor():
+    # During cold start: hard = COLD_START_FLOOR_KWH + OCCUPIED_EXCESS_KWH = 0.08
+    kwh = _periods(0.02)
+    kwh[10] = 0.09  # above population hard (0.08)
+    labels = label_sequence(kwh, floor_kwh=0.03, floor_mad=0.005, in_cold_start=True)
+    assert labels[10]['occupied_label'] == 'OCCUPIED'
+
+
+def test_cold_start_no_soft_threshold():
+    # Cold start disables soft threshold; two above-soft periods → still UNKNOWN
+    kwh = _periods(0.02)
+    kwh[10] = 0.06  # above household soft but below population hard (0.08)
+    kwh[11] = 0.06
+    labels = label_sequence(kwh, floor_kwh=0.03, floor_mad=0.005, in_cold_start=True)
+    assert labels[10]['occupied_label'] == 'UNKNOWN'
+    assert labels[11]['occupied_label'] == 'UNKNOWN'
+
+
+def test_output_contains_required_fields():
+    kwh = _periods(0.02)
+    labels = label_sequence(kwh, floor_kwh=0.03, floor_mad=0.005)
+    assert len(labels) == 48
+    required = {
+        'period_index', 'elec_kwh', 'floor_kwh', 'floor_mad_kwh',
+        'floor_source', 'floor_stable', 'heating_contaminated',
+        'at_floor', 'occupied_label', 'label_source', 'sustained_run',
+    }
+    assert required <= labels[0].keys()
