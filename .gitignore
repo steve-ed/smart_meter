@@ -7,3 +7,4 @@ data/*-solar-heatmap-*.png
 data/*-solar-wk*.png
 __pycache__/
 tests/__pycache__/
+.worktrees/
