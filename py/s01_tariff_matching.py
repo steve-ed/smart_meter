@@ -74,9 +74,10 @@ def rank_tariffs(readings: list[dict],
 
 
 def flag_too_close(ranked: list[dict], threshold_gbp: float = TOO_CLOSE_GBP) -> list[dict]:
-    """Mark too_close=True on all entries if the best saving is within threshold_gbp."""
-    best_saving = ranked[0]["saving_vs_current_gbp"] if ranked else 0.0
-    close = abs(best_saving) < threshold_gbp
+    """Mark too_close=True on all entries if the best saving from alternatives is within threshold_gbp."""
+    alternatives = [r for r in ranked if r["product_type"] != "actual"]
+    best_saving = alternatives[0]["saving_vs_current_gbp"] if alternatives else 0.0
+    close = best_saving < threshold_gbp
     for r in ranked:
         r["too_close"] = close
     return ranked

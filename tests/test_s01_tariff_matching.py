@@ -72,16 +72,25 @@ def test_rank_tariffs_flex_uses_actual_rates():
 
 def test_flag_too_close_marks_within_threshold():
     ranked = [
-        {"product": "A", "annual_cost_gbp": 1000.0, "saving_vs_current_gbp": 10.0},
-        {"product": "B", "annual_cost_gbp": 1015.0, "saving_vs_current_gbp": -5.0},
+        {"product": "A", "product_type": "flat", "annual_cost_gbp": 1000.0, "saving_vs_current_gbp": 10.0},
+        {"product": "B", "product_type": "flat", "annual_cost_gbp": 1015.0, "saving_vs_current_gbp": -5.0},
     ]
     result = flag_too_close(ranked, threshold_gbp=20.0)
     assert result[0]["too_close"] is True
 
 def test_flag_too_close_clears_large_gap():
     ranked = [
-        {"product": "A", "annual_cost_gbp": 1000.0, "saving_vs_current_gbp": 100.0},
-        {"product": "B", "annual_cost_gbp": 1200.0, "saving_vs_current_gbp": -100.0},
+        {"product": "A", "product_type": "flat", "annual_cost_gbp": 1000.0, "saving_vs_current_gbp": 100.0},
+        {"product": "B", "product_type": "flat", "annual_cost_gbp": 1200.0, "saving_vs_current_gbp": -100.0},
+    ]
+    result = flag_too_close(ranked, threshold_gbp=20.0)
+    assert result[0]["too_close"] is False
+
+def test_flag_too_close_excludes_actual_from_best_saving():
+    # Flex (actual) is ranked first with saving=0; Fixed saves £500 — should not be too_close
+    ranked = [
+        {"product": "Flex", "product_type": "actual", "annual_cost_gbp": 1000.0, "saving_vs_current_gbp": 0.0},
+        {"product": "Fixed", "product_type": "flat", "annual_cost_gbp": 500.0, "saving_vs_current_gbp": 500.0},
     ]
     result = flag_too_close(ranked, threshold_gbp=20.0)
     assert result[0]["too_close"] is False
