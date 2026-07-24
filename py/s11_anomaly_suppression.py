@@ -20,7 +20,7 @@ FLATLINE_MIN_PERIODS   = 6
 SPIKE_K                = 4.0
 MAD_FLOOR              = 0.05
 ANALYSIS_WEEKS         = 8
-TOTAL_WEEKS            = 16
+TOTAL_WEEKS            = 200   # large enough to capture all available data
 
 CSV_PATH = "data/s11_anomaly_suppression.csv"
 CSV_COLUMNS = [
@@ -248,7 +248,7 @@ def main() -> None:
 
     for meter_id in sorted(METERS):
         all_days = load_labeled_days(meter_id, weeks=TOTAL_WEEKS)
-        if len(all_days) < TOTAL_WEEKS * 7:
+        if len(all_days) < ANALYSIS_WEEKS * 7:
             print(f"M{meter_id}: insufficient history ({len(all_days)} days), skipping")
             continue
 
