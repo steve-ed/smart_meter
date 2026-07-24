@@ -183,6 +183,8 @@ def analyse_meter(meter_id: int, all_days: list[dict]) -> list[dict]:
             if occupancy_counts.get(label, 0) >= max(occupancy_counts.values()):
                 occupancy = label
                 break
+        else:
+            occupancy = "UNKNOWN"
 
         start_date, start_period = run[0][0], run[0][1]
         end_date, end_period = run[-1][0], run[-1][1]
@@ -210,7 +212,10 @@ def analyse_meter(meter_id: int, all_days: list[dict]) -> list[dict]:
     # Spike alerts
     for entry in flat:
         date, period_index, elec_kwh, weekday, occupied_label = entry
-        base_med, base_mad = baseline.get((weekday, period_index), (0.0, MAD_FLOOR))
+        key = (weekday, period_index)
+        if key not in baseline:
+            continue
+        base_med, base_mad = baseline[key]
         spike_type = classify_spike(elec_kwh, base_med, base_mad, occupied_label)
         if spike_type is None:
             continue
