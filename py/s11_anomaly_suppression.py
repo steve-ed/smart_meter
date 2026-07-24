@@ -149,3 +149,126 @@ def apply_occupancy_suppression(alert_type: str, occupancy: str) -> dict:
         raise KeyError(f"No suppression rule for ({alert_type!r}, {occupancy!r})")
     priority, suppressed, suppress_reason = _SUPPRESSION_TABLE[key]
     return {"priority": priority, "suppressed": suppressed, "suppress_reason": suppress_reason}
+
+
+# ---------------------------------------------------------------------------
+# Per-meter analysis
+# ---------------------------------------------------------------------------
+
+def analyse_meter(meter_id: int, all_days: list[dict]) -> list[dict]:
+    """Analyse one meter's days and return a list of alert row dicts."""
+    if len(all_days) < ANALYSIS_WEEKS * 7:
+        return []
+
+    analysis_days = all_days[-(ANALYSIS_WEEKS * 7):]
+    baseline = build_spike_baseline(all_days)
+
+    flat: list[tuple[str, int, float, int, str]] = []
+    for day in analysis_days:
+        for p in day["periods"]:
+            flat.append((day["date"], p["period_index"], p["elec_kwh"], day["weekday"], p["occupied_label"]))
+
+    elec_series = [entry[2] for entry in flat]
+    alerts: list[dict] = []
+
+    # Flat-line alerts
+    for start_idx, end_idx in detect_flatlines(elec_series):
+        run = flat[start_idx : end_idx + 1]
+
+        # Plurality vote on occupancy
+        occupancy_counts: dict[str, int] = {}
+        for entry in run:
+            occupancy_counts[entry[4]] = occupancy_counts.get(entry[4], 0) + 1
+        for label in ("OCCUPIED", "VACANT", "UNKNOWN"):
+            if occupancy_counts.get(label, 0) >= max(occupancy_counts.values()):
+                occupancy = label
+                break
+
+        start_date, start_period = run[0][0], run[0][1]
+        end_date, end_period = run[-1][0], run[-1][1]
+        mean_kwh = sum(e[2] for e in run) / len(run)
+        wd = run[0][3]
+        base_med, base_mad = baseline.get((wd, start_period), (0.0, MAD_FLOOR))
+        suppression = apply_occupancy_suppression("FLATLINE", occupancy)
+
+        alerts.append({
+            "alert_type": "FLATLINE",
+            "priority": suppression["priority"],
+            "suppressed": suppression["suppressed"],
+            "suppress_reason": suppression["suppress_reason"] if suppression["suppress_reason"] is not None else "",
+            "occupancy_state": occupancy,
+            "start_date": start_date,
+            "start_period": start_period,
+            "end_date": end_date,
+            "end_period": end_period,
+            "duration_periods": len(run),
+            "mean_kwh": round(mean_kwh, 4),
+            "baseline_median_kwh": round(base_med, 4),
+            "baseline_mad_kwh": round(base_mad, 4),
+        })
+
+    # Spike alerts
+    for entry in flat:
+        date, period_index, elec_kwh, weekday, occupied_label = entry
+        base_med, base_mad = baseline.get((weekday, period_index), (0.0, MAD_FLOOR))
+        spike_type = classify_spike(elec_kwh, base_med, base_mad, occupied_label)
+        if spike_type is None:
+            continue
+        suppression = apply_occupancy_suppression(spike_type, occupied_label)
+        alerts.append({
+            "alert_type": spike_type,
+            "priority": suppression["priority"],
+            "suppressed": suppression["suppressed"],
+            "suppress_reason": suppression["suppress_reason"] if suppression["suppress_reason"] is not None else "",
+            "occupancy_state": occupied_label,
+            "start_date": date,
+            "start_period": period_index,
+            "end_date": date,
+            "end_period": period_index,
+            "duration_periods": 1,
+            "mean_kwh": round(elec_kwh, 4),
+            "baseline_median_kwh": round(base_med, 4),
+            "baseline_mad_kwh": round(base_mad, 4),
+        })
+
+    return alerts
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+def main() -> None:
+    all_rows: list[dict] = []
+
+    for meter_id in sorted(METERS):
+        all_days = load_labeled_days(meter_id, weeks=TOTAL_WEEKS)
+        if len(all_days) < TOTAL_WEEKS * 7:
+            print(f"M{meter_id}: insufficient history ({len(all_days)} days), skipping")
+            continue
+
+        alerts = analyse_meter(meter_id, all_days)
+
+        n_suppressed = sum(1 for a in alerts if a["suppressed"])
+        n_flatline   = sum(1 for a in alerts if a["alert_type"] == "FLATLINE")
+        n_spike      = sum(1 for a in alerts if a["alert_type"].startswith("SPIKE"))
+        print(
+            f"M{meter_id}: {len(alerts)} alerts ({n_suppressed} suppressed)"
+            f" — {n_flatline} flatline, {n_spike} spike"
+        )
+
+        for alert in alerts:
+            row = {"meter_id": meter_id}
+            row.update(alert)
+            all_rows.append(row)
+
+    with open(CSV_PATH, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=CSV_COLUMNS)
+        writer.writeheader()
+        writer.writerows(all_rows)
+
+    print(f"\nWrote {len(all_rows)} rows to {CSV_PATH}")
+
+
+if __name__ == "__main__":
+    main()
