@@ -1,0 +1,11 @@
+meter_id,scenario,heating_gas_kwh,hp_elec_kwh,gas_cost_gbp,hp_elec_cost_gbp,annual_saving_gbp,mean_seasonal_cop,breakeven_cop,payback_years,npv_15yr_gbp,viable,flag_heating_demand,flag_seasonal_signal,flag_cop_above_breakeven,flag_financial_viability
+1,optimistic_45c_flow,7125.0,1699.0,427.47,276.81,150.66,3.73,4.0,29.9,-2765.0,False,True,True,False,False
+1,conservative_55c_flow,7125.0,2077.0,427.47,338.33,89.14,3.05,4.0,50.5,-3473.0,False,True,True,False,False
+2,optimistic_45c_flow,52235.0,12307.0,3134.09,2004.88,1129.2,3.78,4.0,4.0,8505.0,True,True,True,False,True
+2,conservative_55c_flow,52235.0,15081.0,3134.09,2456.63,677.45,3.08,4.0,6.6,3302.0,True,True,True,False,True
+3,optimistic_45c_flow,64368.0,15379.0,3862.07,2156.2,1705.87,3.72,4.0,2.6,15147.0,True,True,True,False,True
+3,conservative_55c_flow,64368.0,18790.0,3862.07,2634.39,1227.67,3.05,4.0,3.7,9640.0,True,True,True,False,True
+4,optimistic_45c_flow,27720.0,6521.0,1663.21,914.21,749.01,3.78,4.0,6.0,4127.0,True,True,True,False,True
+4,conservative_55c_flow,27720.0,7993.0,1663.21,1120.58,542.63,3.09,4.0,8.3,1750.0,True,True,True,False,True
+5,optimistic_45c_flow,42999.0,10215.0,2579.96,1201.33,1378.62,3.75,4.0,3.3,11378.0,True,True,True,False,True
+5,conservative_55c_flow,42999.0,12496.0,2579.96,1469.5,1110.46,3.06,4.0,4.1,8290.0,True,True,True,False,True
