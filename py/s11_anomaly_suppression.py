@@ -1,4 +1,8 @@
-"""s11_anomaly_suppression.py — Pure functions for anomaly detection with occupancy suppression."""
+"""
+Service #11 — Vacancy-Aware Anomaly Suppression.
+Detects electricity flat-line and spike anomalies; suppresses false positives
+using occupancy labels from ElecOccupancyDetector.
+"""
 
 import csv
 import statistics
@@ -30,7 +34,11 @@ CSV_COLUMNS = [
 # Pure functions
 # ---------------------------------------------------------------------------
 
-def detect_flatlines(readings, threshold=0.010, min_periods=6):
+def detect_flatlines(
+    readings: list[float],
+    threshold: float = FLATLINE_THRESHOLD_KWH,
+    min_periods: int = FLATLINE_MIN_PERIODS,
+) -> list[tuple[int, int]]:
     """Return [(start_idx, end_idx)] for contiguous runs below threshold lasting >= min_periods.
 
     Args:
@@ -57,7 +65,9 @@ def detect_flatlines(readings, threshold=0.010, min_periods=6):
     return result
 
 
-def build_spike_baseline(days):
+def build_spike_baseline(
+    days: list[dict],
+) -> dict[tuple[int, int], tuple[float, float]]:
     """Compute (median_kwh, mad_kwh) per (weekday, period_index) slot.
 
     Args:
@@ -84,7 +94,13 @@ def build_spike_baseline(days):
     return baseline
 
 
-def classify_spike(reading, median, mad, occupancy, k=4.0):
+def classify_spike(
+    reading: float,
+    median: float,
+    mad: float,
+    occupancy: str,
+    k: float = SPIKE_K,
+) -> str | None:
     """Classify a reading as a spike, accounting for occupancy.
 
     Args:
@@ -118,7 +134,7 @@ _SUPPRESSION_TABLE = {
 }
 
 
-def apply_occupancy_suppression(alert_type, occupancy):
+def apply_occupancy_suppression(alert_type: str, occupancy: str) -> dict:
     """Return suppression metadata for an alert given occupancy state.
 
     Args:
@@ -128,5 +144,8 @@ def apply_occupancy_suppression(alert_type, occupancy):
     Returns:
         dict with keys "priority" (str), "suppressed" (bool), "suppress_reason" (str | None)
     """
-    priority, suppressed, suppress_reason = _SUPPRESSION_TABLE[(alert_type, occupancy)]
+    key = (alert_type, occupancy)
+    if key not in _SUPPRESSION_TABLE:
+        raise KeyError(f"No suppression rule for ({alert_type!r}, {occupancy!r})")
+    priority, suppressed, suppress_reason = _SUPPRESSION_TABLE[key]
     return {"priority": priority, "suppressed": suppressed, "suppress_reason": suppress_reason}

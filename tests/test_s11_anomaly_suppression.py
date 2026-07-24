@@ -40,6 +40,10 @@ def test_flatlines_all_above_threshold_empty():
     assert result == []
 
 
+def test_flatlines_empty_input():
+    assert detect_flatlines([]) == []
+
+
 # --- build_spike_baseline ---
 
 def _make_day(weekday, period_values):
