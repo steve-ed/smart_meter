@@ -31,6 +31,7 @@ from config import (
     ELEC_RATE_P_KWH,
     GAS_KWH_PER_M3,
     GAS_RATE_P_KWH,
+    METER_META,
     METERS,
     REGRESSION_END,
     REGRESSION_START,
@@ -38,18 +39,6 @@ from config import (
     WINTER_START,
 )
 from home_model import DWELLING_PARAMS, build_dwelling
-
-# ---------------------------------------------------------------------------
-# Meter metadata (property type / build era for HLC lookup)
-# ---------------------------------------------------------------------------
-
-METER_META = {
-    1: {"property_type": "semi",     "build_era": "1945_1980"},
-    2: {"property_type": "semi",     "build_era": "post_1980"},
-    3: {"property_type": "detached", "build_era": "post_1980"},
-    4: {"property_type": "terraced", "build_era": "pre_1945"},
-    5: {"property_type": "semi",     "build_era": "post_1980"},
-}
 
 # ---------------------------------------------------------------------------
 # Building physics constants (from tier4_indoor_temperature.md)

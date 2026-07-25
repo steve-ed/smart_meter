@@ -1,0 +1,25 @@
+[
+  {
+    "name": "E.ON Next Fixed",
+    "product_type": "flat",
+    "standing_p_day": 50.0,
+    "bands": [
+      {"start_period": 0, "end_period": 47, "rate_p_per_kwh": 24.0}
+    ]
+  },
+  {
+    "name": "E.ON Next Drive",
+    "product_type": "two_rate",
+    "standing_p_day": 50.0,
+    "bands": [
+      {"start_period": 0,  "end_period": 13, "rate_p_per_kwh": 7.5},
+      {"start_period": 14, "end_period": 47, "rate_p_per_kwh": 24.5}
+    ]
+  },
+  {
+    "name": "E.ON Next Flex",
+    "product_type": "actual",
+    "standing_p_day": null,
+    "bands": []
+  }
+]

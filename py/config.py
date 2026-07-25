@@ -51,3 +51,33 @@ ELEC_RATE_P_KWH  = 24.0   # pence/kWh (Ofgem price cap — update as needed)
 
 GAS_CAP_M3       = 2.0    # m³/half-hour — sentinel value filter
 ELEC_CAP_KWH     = 15.0   # kWh/half-hour — above any plausible domestic reading
+
+# ---------------------------------------------------------------------------
+# Carbon intensity API
+# ---------------------------------------------------------------------------
+
+CARBON_REGION_ID = 12   # West Yorkshire DNO region (National Grid ESO)
+
+# ---------------------------------------------------------------------------
+# Meter metadata (property type / build era for HDD benchmarking)
+# ---------------------------------------------------------------------------
+
+METER_META = {
+    1: {"property_type": "semi",     "build_era": "1945_1980"},
+    2: {"property_type": "semi",     "build_era": "post_1980"},
+    3: {"property_type": "detached", "build_era": "post_1980"},
+    4: {"property_type": "terraced", "build_era": "pre_1945"},
+    5: {"property_type": "semi",     "build_era": "post_1980"},
+}
+
+# ---------------------------------------------------------------------------
+# Electricity MPANs (separate from gas MPXNs in METERS)
+# ---------------------------------------------------------------------------
+
+ELEC_METERS = {
+    1: "1234567891000",
+    2: "1234567891002",
+    3: "1234567891008",
+    4: "1234567891010",
+    5: "1234567891024",
+}
