@@ -37,6 +37,32 @@ def _init_state():
 
 _init_state()
 
+# ── Pytest runner ────────────────────────────────────────────────────────────
+
+def parse_pytest_summary(output: str) -> tuple[int, int]:
+    passed = int(m.group(1)) if (m := re.search(r"(\d+) passed", output)) else 0
+    failed = int(m.group(1)) if (m := re.search(r"(\d+) failed", output)) else 0
+    return passed, failed
+
+
+def run_pytest() -> bool:
+    """Run full test suite. Returns True if all pass. Updates session_state."""
+    t0 = time.time()
+    proc = subprocess.run(
+        [sys.executable, "-m", "pytest", "-v", "tests/"],
+        capture_output=True,
+        text=True,
+    )
+    duration = round(time.time() - t0, 1)
+    output = proc.stdout + proc.stderr
+    passed, failed = parse_pytest_summary(output)
+
+    st.session_state.pytest_output = output
+    st.session_state.pytest_passed = (proc.returncode == 0)
+    st.session_state.pytest_counts = (passed, failed)
+    st.session_state.pytest_duration = duration
+    return proc.returncode == 0
+
 # ── Sidebar ─────────────────────────────────────────────────────────────────
 
 METER_LABELS = {
