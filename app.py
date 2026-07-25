@@ -92,12 +92,15 @@ def run_services(meter_id: int) -> None:
     results = {}
 
     # Pre-compute shared inputs
-    with open("data/eon_tariffs.json") as f:
-        eon_products = json.load(f)
-
-    daily_weather = s04._build_daily_weather()
-    weather_rows  = load_weather()
-    all_days      = load_labeled_days(meter_id, weeks=16)
+    try:
+        with open("data/eon_tariffs.json") as f:
+            eon_products = json.load(f)
+        daily_weather = s04._build_daily_weather()
+        weather_rows  = load_weather()
+        all_days      = load_labeled_days(meter_id, weeks=16)
+    except Exception as e:
+        st.error(f"Failed to load service dependencies: {e}")
+        return
 
     # Tier 1
     results["s01"] = _to_rows(s01.analyse_meter(meter_id, eon_products))
