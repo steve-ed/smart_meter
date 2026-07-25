@@ -201,6 +201,80 @@ with st.sidebar:
         st.markdown(f":green[✓ Tier 3 {tier3}/1]")
         st.caption(st.session_state.last_run_time)
 
+# ── Display helpers ──────────────────────────────────────────────────────────
+
+SERVICE_NAMES = {
+    "s01": "S01 — E.ON Tariff Comparison",
+    "s02": "S02 — Battery Size Optimisation",
+    "s03": "S03 — Appliance Disaggregation",
+    "s04": "S04 — Heat Pump Suitability",
+    "s05": "S05 — Boiler Efficiency Trending",
+    "s06": "S06 — Heating Efficiency Scoring",
+    "s07": "S07 — Degree-Day Budget Forecast",
+    "s08": "S08 — Carbon-Aware Demand Shifting",
+    "s09": "S09 — Heating Pre-Warm Optimisation",
+    "s10": "S10 — Micro-Leak & Frost Detection",
+    "s11": "S11 — Vacancy-Aware Anomaly Suppression",
+}
+
+
+def _show_service(key: str) -> None:
+    name = SERVICE_NAMES[key]
+    results = st.session_state.results
+    has_run = key in results
+
+    label = f"{'✓' if has_run else '○'} {name}"
+    with st.expander(label, expanded=has_run):
+        if not has_run:
+            st.caption("Not yet run.")
+            return
+        rows = results[key]
+        if not rows:
+            st.caption("No results returned.")
+            return
+        if "error" in rows[0]:
+            st.error(rows[0]["error"])
+            return
+        st.dataframe(rows, use_container_width=True)
+
+
+# ── Config helpers ───────────────────────────────────────────────────────────
+
+def _rewrite_constant(content: str, name: str, value) -> str:
+    """Replace the value of a constant in config.py content, preserving comments."""
+    val_str = f'"{value}"' if isinstance(value, str) else str(value)
+    return re.sub(
+        rf'^({re.escape(name)}\s*=\s*)("[^"]*"|\d+\.?\d*)',
+        rf'\g<1>{val_str}',
+        content,
+        flags=re.MULTILINE,
+    )
+
+
+def save_config(gas_rate: float, elec_rate: float,
+                winter_start: str, winter_end: str,
+                reg_start: str, reg_end: str) -> None:
+    path = "py/config.py"
+    with open(path) as f:
+        content = f.read()
+    for name, value in [
+        ("GAS_RATE_P_KWH",   gas_rate),
+        ("ELEC_RATE_P_KWH",  elec_rate),
+        ("WINTER_START",     winter_start),
+        ("WINTER_END",       winter_end),
+        ("REGRESSION_START", reg_start),
+        ("REGRESSION_END",   reg_end),
+    ]:
+        content = _rewrite_constant(content, name, value)
+    with open(path, "w") as f:
+        f.write(content)
+
+
+def save_tariffs(tariffs: list[dict]) -> None:
+    with open("data/eon_tariffs.json", "w") as f:
+        json.dump(tariffs, f, indent=2)
+
+
 # ── Main tabs ────────────────────────────────────────────────────────────────
 
 tab_t1, tab_t2, tab_t3, tab_tests, tab_cfg = st.tabs(
@@ -208,16 +282,101 @@ tab_t1, tab_t2, tab_t3, tab_tests, tab_cfg = st.tabs(
 )
 
 with tab_t1:
-    st.write("Tier 1 — coming soon")
+    st.markdown(f"### Tier 1 — Smart Energy Services")
+    if st.session_state.last_run_meter:
+        st.caption(f"Results for M{st.session_state.last_run_meter}")
+    for key in ["s01", "s02", "s03", "s04"]:
+        _show_service(key)
 
 with tab_t2:
-    st.write("Tier 2 — coming soon")
+    st.markdown("### Tier 2 — Weather & Efficiency Services")
+    if st.session_state.last_run_meter:
+        st.caption(f"Results for M{st.session_state.last_run_meter}")
+    for key in ["s05", "s06", "s07", "s08", "s09", "s10"]:
+        _show_service(key)
 
 with tab_t3:
-    st.write("Tier 3 — coming soon")
+    st.markdown("### Tier 3 — Anomaly Detection")
+    if st.session_state.last_run_meter:
+        st.caption(f"Results for M{st.session_state.last_run_meter}")
+    _show_service("s11")
 
 with tab_tests:
-    st.write("Tests — coming soon")
+    st.markdown("### Test Results")
+
+    if st.session_state.pytest_passed is None:
+        st.info("Press **Run All** to execute the test suite.")
+    else:
+        passed, failed = st.session_state.pytest_counts
+        duration = st.session_state.pytest_duration
+
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Passed", passed, delta=None)
+        col2.metric("Failed", failed, delta=None)
+        col3.metric("Duration", f"{duration}s")
+
+        if failed > 0:
+            st.error(f"{failed} test(s) failed — services were not run.")
+        else:
+            st.success("All tests passed.")
+
+        with st.expander("Full pytest output", expanded=failed > 0):
+            st.code(st.session_state.pytest_output, language="text")
 
 with tab_cfg:
-    st.write("Config — coming soon")
+    st.markdown("### Configuration")
+
+    # Read current tariffs from file (always fresh)
+    with open("data/eon_tariffs.json") as f:
+        tariffs = json.load(f)
+
+    col_left, col_right = st.columns(2)
+
+    with col_left:
+        st.markdown("#### Energy Rates")
+        new_gas  = st.number_input("Gas Rate (p/kWh)",  value=float(GAS_RATE_P_KWH),  step=0.1, format="%.2f")
+        new_elec = st.number_input("Electricity Rate (p/kWh)", value=float(ELEC_RATE_P_KWH), step=0.1, format="%.2f")
+
+        st.markdown("#### Analysis Window")
+        new_winter_start = st.text_input("Winter Start (YYYY-MM-DD)", value=WINTER_START)
+        new_winter_end   = st.text_input("Winter End (YYYY-MM-DD)",   value=WINTER_END)
+        new_reg_start    = st.text_input("Regression Start (YYYY-MM-DD)", value=REGRESSION_START)
+        new_reg_end      = st.text_input("Regression End (YYYY-MM-DD)",   value=REGRESSION_END)
+
+    with col_right:
+        st.markdown("#### E.ON Tariffs")
+        updated_tariffs = []
+        for product in tariffs:
+            with st.expander(product["name"]):
+                if product["product_type"] == "actual":
+                    st.caption("Uses actual meter rates — no editable bands.")
+                    updated_tariffs.append(product)
+                    continue
+
+                new_standing = st.number_input(
+                    "Standing (p/day)",
+                    value=float(product["standing_p_day"] or 0.0),
+                    step=0.5, format="%.2f",
+                    key=f"standing_{product['name']}",
+                )
+                updated_bands = []
+                for i, band in enumerate(product["bands"]):
+                    new_rate = st.number_input(
+                        f"Band {i+1} rate p/kWh  (periods {band['start_period']}–{band['end_period']})",
+                        value=float(band["rate_p_per_kwh"]),
+                        step=0.1, format="%.2f",
+                        key=f"rate_{product['name']}_{i}",
+                    )
+                    updated_bands.append({**band, "rate_p_per_kwh": new_rate})
+                updated_tariffs.append({
+                    **product,
+                    "standing_p_day": new_standing,
+                    "bands": updated_bands,
+                })
+
+    if st.button("💾 Save Changes"):
+        save_config(new_gas, new_elec,
+                    new_winter_start, new_winter_end,
+                    new_reg_start, new_reg_end)
+        save_tariffs(updated_tariffs)
+        st.success("Saved. Restart the app to apply rate changes to service runs.")
