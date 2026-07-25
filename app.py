@@ -5,7 +5,6 @@ import json
 import time
 import subprocess
 from contextlib import redirect_stdout
-from datetime import date
 
 import streamlit as st
 
@@ -54,7 +53,7 @@ with st.sidebar:
         options=list(METER_LABELS.values()),
         index=0,
     )
-    meter_id = next(mid for mid, lbl in METER_LABELS.items() if lbl == selected_label)
+    meter_id = next((mid for mid, lbl in METER_LABELS.items() if lbl == selected_label), 1)
 
     run_clicked = st.button("▶ Run All", use_container_width=True, type="primary")
 
@@ -69,8 +68,8 @@ with st.sidebar:
         st.markdown(f":{color}[✓ Tests {passed}/{passed + failed}]")
 
         results = st.session_state.results
-        tier1 = sum(1 for k in ["s01","s02","s03","s04"] if k in results)
-        tier2 = sum(1 for k in ["s05","s06","s07","s08","s09","s10"] if k in results)
+        tier1 = sum(1 for k in ["s01", "s02", "s03", "s04"] if k in results)
+        tier2 = sum(1 for k in ["s05", "s06", "s07", "s08", "s09", "s10"] if k in results)
         tier3 = sum(1 for k in ["s11"] if k in results)
         st.markdown(f":green[✓ Tier 1 {tier1}/4]")
         st.markdown(f":green[✓ Tier 2 {tier2}/6]")
