@@ -10,6 +10,21 @@ import streamlit as st
 
 sys.path.insert(0, "py")
 
+import s01_tariff_matching as s01
+import s02_battery_sizing as s02
+import s03_disaggregation as s03
+import s04_heat_pump as s04
+import s05_boiler_trending as s05
+import s06_heating_efficiency as s06
+import s07_budget_forecast as s07
+import s08_carbon_shifting as s08
+import s09_prewarm as s09
+import s10_leak_frost as s10
+import s11_anomaly_suppression as s11
+
+from tier2_lib import load_weather
+from tier3_lib import load_labeled_days
+
 from config import (
     METERS, METER_META,
     GAS_RATE_P_KWH, ELEC_RATE_P_KWH,
@@ -63,6 +78,75 @@ def run_pytest() -> bool:
     st.session_state.pytest_duration = duration
     return proc.returncode == 0
 
+# ── Service runner ───────────────────────────────────────────────────────────
+
+def _to_rows(result) -> list[dict]:
+    """Wrap a single dict result in a list for uniform table display."""
+    if isinstance(result, dict):
+        return [result]
+    return result or []
+
+
+def run_services(meter_id: int) -> None:
+    """Run all 11 services for one meter. Updates st.session_state.results."""
+    results = {}
+
+    # Pre-compute shared inputs
+    with open("data/eon_tariffs.json") as f:
+        eon_products = json.load(f)
+
+    daily_weather = s04._build_daily_weather()
+    weather_rows  = load_weather()
+    all_days      = load_labeled_days(meter_id, weeks=16)
+
+    # Tier 1
+    results["s01"] = _to_rows(s01.analyse_meter(meter_id, eon_products))
+    results["s02"] = _to_rows(s02.analyse_meter(meter_id))
+    results["s03"] = _to_rows(s03.analyse_meter(meter_id))
+    results["s04"] = _to_rows(s04.analyse_meter(meter_id, daily_weather))
+
+    # Tier 2
+    results["s05"] = _to_rows(s05.analyse_meter(meter_id))
+    results["s06"] = _to_rows(s06.analyse_meter(meter_id))
+    results["s07"] = _to_rows(s07.analyse_meter(meter_id))
+    results["s08"] = _run_s08(meter_id)
+    results["s09"] = _to_rows(s09.analyse_meter(meter_id))
+    results["s10"] = _to_rows(s10.analyse_meter(meter_id, weather_rows))
+
+    # Tier 3
+    results["s11"] = _to_rows(s11.analyse_meter(meter_id, all_days))
+
+    st.session_state.results = results
+
+
+def _run_s08(meter_id: int) -> list[dict]:
+    """s08 has no analyse_meter — replicate its per-meter logic here."""
+    from s08_carbon_shifting import (
+        fetch_carbon_intensity, optimal_shift_window, load_appliances,
+        CARBON_REGION_ID,
+    )
+    appliances = [a for a in load_appliances() if a["meter_id"] == meter_id]
+    try:
+        carbon_periods = fetch_carbon_intensity(CARBON_REGION_ID)
+    except Exception as e:
+        return [{"error": str(e), "meter_id": meter_id}]
+
+    rows = []
+    for appl in appliances:
+        result = optimal_shift_window(carbon_periods, appl)
+        if result.get("recommendation") is None:
+            continue
+        rows.append({
+            "meter_id":                    meter_id,
+            "appliance":                   appl["appliance"],
+            "recommended_start_time":      result["recommended_start_time"],
+            "mean_carbon_gco2_per_kwh":    result["mean_carbon_gco2_per_kwh"],
+            "current_carbon_gco2_per_kwh": result["current_carbon_gco2_per_kwh"],
+            "carbon_saving_gco2":          result["carbon_saving_gco2"],
+            "joint_optimal":               result["joint_optimal"],
+        })
+    return rows
+
 # ── Sidebar ─────────────────────────────────────────────────────────────────
 
 METER_LABELS = {
@@ -82,6 +166,18 @@ with st.sidebar:
     meter_id = next((mid for mid, lbl in METER_LABELS.items() if lbl == selected_label), 1)
 
     run_clicked = st.button("▶ Run All", use_container_width=True, type="primary")
+
+    if run_clicked:
+        with st.spinner("Running tests…"):
+            tests_ok = run_pytest()
+        if not tests_ok:
+            st.sidebar.error("Tests failed — services not run")
+        else:
+            with st.spinner(f"Running services for M{meter_id}…"):
+                run_services(meter_id)
+            st.session_state.last_run_meter = meter_id
+            st.session_state.last_run_time = time.strftime("%Y-%m-%d %H:%M")
+            st.rerun()
 
     st.divider()
     st.markdown("**Last Run**")
