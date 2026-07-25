@@ -1,9 +1,10 @@
 import sys
-import io
+import os
 import re
 import json
 import time
 import subprocess
+import tempfile
 
 import streamlit as st
 
@@ -16,7 +17,6 @@ import s04_heat_pump as s04
 import s05_boiler_trending as s05
 import s06_heating_efficiency as s06
 import s07_budget_forecast as s07
-import s08_carbon_shifting as s08
 import s09_prewarm as s09
 import s10_leak_frost as s10
 import s11_anomaly_suppression as s11
@@ -25,7 +25,7 @@ from tier2_lib import load_weather
 from tier3_lib import load_labeled_days
 
 from config import (
-    METERS, METER_META,
+    METER_META,
     GAS_RATE_P_KWH, ELEC_RATE_P_KWH,
     WINTER_START, WINTER_END,
     REGRESSION_START, REGRESSION_END,
@@ -241,13 +241,25 @@ def _show_service(key: str) -> None:
 
 def _rewrite_constant(content: str, name: str, value) -> str:
     """Replace the value of a constant in config.py content, preserving comments."""
-    val_str = f'"{value}"' if isinstance(value, str) else str(value)
+    val_str = f'"{value}"' if isinstance(value, str) else f"{value:.10g}"
     return re.sub(
         rf'^({re.escape(name)}\s*=\s*)("[^"]*"|\d+\.?\d*)',
         rf'\g<1>{val_str}',
         content,
         flags=re.MULTILINE,
     )
+
+
+def _atomic_write(path: str, content: str) -> None:
+    dir_ = os.path.dirname(path) or "."
+    fd, tmp = tempfile.mkstemp(dir=dir_, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(content)
+        os.replace(tmp, path)
+    except Exception:
+        os.unlink(tmp)
+        raise
 
 
 def save_config(gas_rate: float, elec_rate: float,
@@ -265,13 +277,11 @@ def save_config(gas_rate: float, elec_rate: float,
         ("REGRESSION_END",   reg_end),
     ]:
         content = _rewrite_constant(content, name, value)
-    with open(path, "w") as f:
-        f.write(content)
+    _atomic_write(path, content)
 
 
 def save_tariffs(tariffs: list[dict]) -> None:
-    with open("data/eon_tariffs.json", "w") as f:
-        json.dump(tariffs, f, indent=2)
+    _atomic_write("data/eon_tariffs.json", json.dumps(tariffs, indent=2))
 
 
 # ── Main tabs ────────────────────────────────────────────────────────────────
@@ -378,4 +388,5 @@ with tab_cfg:
                     new_winter_start, new_winter_end,
                     new_reg_start, new_reg_end)
         save_tariffs(updated_tariffs)
-        st.success("Saved. Restart the app to apply rate changes to service runs.")
+        st.success("Saved.")
+        st.rerun()
