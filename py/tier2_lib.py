@@ -145,18 +145,24 @@ def load_consumption(meter_id: int,
     """
     Return half-hourly gas kWh rows for one meter, sorted by timestamp.
     Filters out readings above GAS_CAP_M3 (sentinel / error values).
+    Deduplicates by timestamp (keeps first occurrence).
     """
     mpxn = METERS[meter_id]
+    seen: set[str] = set()
     rows = []
     with open(path, newline="") as f:
         for row in csv.DictReader(f):
             if row["mpxn"] != mpxn or row["utility"] != "gas":
                 continue
+            ts = row["timestamp"]
+            if ts in seen:
+                continue
+            seen.add(ts)
             val_m3 = float(row["value"])
             if val_m3 > GAS_CAP_M3:
                 continue
             rows.append({
-                "timestamp": row["timestamp"],
+                "timestamp": ts,
                 "gas_kwh":   round(val_m3 * GAS_KWH_PER_M3, 4),
             })
     return sorted(rows, key=lambda r: r["timestamp"])

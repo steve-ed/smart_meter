@@ -71,9 +71,14 @@ def _forecast_temp_map() -> dict[str, tuple[float, float]]:
 
 
 def analyse_meter(meter_id: int) -> dict:
-    today = date.today()
-
     all_days = build_daily_gas_hdd(meter_id, REGRESSION_START, REGRESSION_END)
+
+    if not all_days:
+        print(f"  M{meter_id}: no data")
+        return {"meter_id": meter_id, "status": "insufficient_data"}
+
+    # Anchor to last date in the dataset so the service works with historical data
+    today = date.fromisoformat(max(d["date"] for d in all_days))
 
     monthly_spend = _monthly_spend(all_days)
     twelve_months = sorted(monthly_spend)[-12:]

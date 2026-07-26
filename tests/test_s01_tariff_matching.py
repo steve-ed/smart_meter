@@ -1,5 +1,5 @@
 import pytest
-from s01_tariff_matching import rank_tariffs, flag_too_close
+from s01_tariff_matching import rank_alternatives, current_annual_cost, flag_too_close
 
 
 def _readings(kwh_night=0.5, kwh_day=1.0, days=30):
@@ -44,53 +44,85 @@ def _eon_products():
     ]
 
 
-def test_rank_tariffs_cheapest_first():
-    readings = _readings(kwh_night=1.0, kwh_day=0.1)   # mostly night → Drive should win
+# --- current_annual_cost ---
+
+def test_current_annual_cost_returns_expected_fields():
+    readings = _readings()
     period_rates, standing = _actual_rates()
-    ranked = rank_tariffs(readings, period_rates, standing, _eon_products())
+    result = current_annual_cost(readings, period_rates, standing)
+    assert "total_cost_gbp" in result
+    assert "unit_cost_gbp" in result
+    assert "standing_cost_gbp" in result
+    assert "days_in_sample" in result
+
+def test_current_annual_cost_scales_to_annual():
+    readings = _readings(kwh_day=1.0, kwh_night=1.0, days=30)
+    period_rates, standing = {p: 10.0 for p in range(48)}, 0.0
+    result = current_annual_cost(readings, period_rates, standing)
+    # 30 days × 48 periods × 1.0 kWh × 10p × (365/30) / 100 = £1752
+    assert result["total_cost_gbp"] == pytest.approx(1752.0, rel=0.01)
+
+
+# --- rank_alternatives ---
+
+def test_rank_alternatives_drive_wins_heavy_night():
+    readings = _readings(kwh_night=1.0, kwh_day=0.1)   # mostly night → Drive cheaper
+    period_rates, standing = _actual_rates()
+    current_gbp = current_annual_cost(readings, period_rates, standing)["total_cost_gbp"]
+    ranked = rank_alternatives(readings, current_gbp, _eon_products())
     assert ranked[0]["product"] == "E.ON Next Drive"
 
-def test_rank_tariffs_saving_computed():
-    readings = _readings(kwh_night=0.0, kwh_day=1.0)   # all day usage → Fixed cheapest
+def test_rank_alternatives_saving_fields_present():
+    readings = _readings()
     period_rates, standing = _actual_rates()
-    ranked = rank_tariffs(readings, period_rates, standing, _eon_products())
+    current_gbp = current_annual_cost(readings, period_rates, standing)["total_cost_gbp"]
+    ranked = rank_alternatives(readings, current_gbp, _eon_products())
     for r in ranked:
         assert "saving_vs_current_gbp" in r
         assert "annual_cost_gbp" in r
 
-def test_rank_tariffs_flex_uses_actual_rates():
+def test_rank_alternatives_excludes_actual_products():
     readings = _readings()
     period_rates, standing = _actual_rates()
-    products = [{"name": "E.ON Next Flex", "product_type": "actual",
-                 "standing_p_day": None, "bands": []}]
-    ranked = rank_tariffs(readings, period_rates, standing, products)
-    # Flex uses actual rates → saving_vs_current = 0
-    assert ranked[0]["saving_vs_current_gbp"] == pytest.approx(0.0, abs=0.01)
+    current_gbp = current_annual_cost(readings, period_rates, standing)["total_cost_gbp"]
+    products = _eon_products() + [
+        {"name": "E.ON Next Flex", "product_type": "actual", "standing_p_day": None, "bands": []}
+    ]
+    ranked = rank_alternatives(readings, current_gbp, products)
+    assert all(r["product_type"] != "actual" for r in ranked)
+
+def test_rank_alternatives_sorted_best_saving_first():
+    readings = _readings()
+    period_rates, standing = _actual_rates()
+    current_gbp = current_annual_cost(readings, period_rates, standing)["total_cost_gbp"]
+    ranked = rank_alternatives(readings, current_gbp, _eon_products())
+    savings = [r["saving_vs_current_gbp"] for r in ranked]
+    assert savings == sorted(savings, reverse=True)
 
 
 # --- flag_too_close ---
 
 def test_flag_too_close_marks_within_threshold():
     ranked = [
-        {"product": "A", "product_type": "flat", "annual_cost_gbp": 1000.0, "saving_vs_current_gbp": 10.0},
-        {"product": "B", "product_type": "flat", "annual_cost_gbp": 1015.0, "saving_vs_current_gbp": -5.0},
+        {"product": "A", "saving_vs_current_gbp": 10.0},
+        {"product": "B", "saving_vs_current_gbp": -5.0},
     ]
     result = flag_too_close(ranked, threshold_gbp=20.0)
     assert result[0]["too_close"] is True
 
 def test_flag_too_close_clears_large_gap():
     ranked = [
-        {"product": "A", "product_type": "flat", "annual_cost_gbp": 1000.0, "saving_vs_current_gbp": 100.0},
-        {"product": "B", "product_type": "flat", "annual_cost_gbp": 1200.0, "saving_vs_current_gbp": -100.0},
+        {"product": "A", "saving_vs_current_gbp": 100.0},
+        {"product": "B", "saving_vs_current_gbp": -100.0},
     ]
     result = flag_too_close(ranked, threshold_gbp=20.0)
     assert result[0]["too_close"] is False
 
-def test_flag_too_close_excludes_actual_from_best_saving():
-    # Flex (actual) is ranked first with saving=0; Fixed saves £500 — should not be too_close
+def test_flag_too_close_false_when_no_saving():
+    # Best saving is negative — no alternative saves money, should not be too_close
     ranked = [
-        {"product": "Flex", "product_type": "actual", "annual_cost_gbp": 1000.0, "saving_vs_current_gbp": 0.0},
-        {"product": "Fixed", "product_type": "flat", "annual_cost_gbp": 500.0, "saving_vs_current_gbp": 500.0},
+        {"product": "A", "saving_vs_current_gbp": -50.0},
+        {"product": "B", "saving_vs_current_gbp": -200.0},
     ]
     result = flag_too_close(ranked, threshold_gbp=20.0)
     assert result[0]["too_close"] is False

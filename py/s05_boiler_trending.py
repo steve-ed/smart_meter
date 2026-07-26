@@ -107,16 +107,15 @@ def analyse_meter(meter_id: int) -> dict:
     recent    = [(d["hdd"], d["gas_kwh"]) for d in heating
                  if d["date"] >= cutoff]
 
-    result  = detect_boiler_degradation(baseline, recent)
-    weekly  = _weekly_series([d for d in heating if d["date"] < cutoff])
-    trend   = classify_trend(weekly)
-
-    result["meter_id"]   = meter_id
-    result["trend_type"] = trend
+    result = detect_boiler_degradation(baseline, recent)
+    result["meter_id"] = meter_id
 
     if result.get("status") == "insufficient_data":
         print(f"  M{meter_id}: insufficient data")
     else:
+        weekly = _weekly_series([d for d in heating if d["date"] < cutoff])
+        trend  = classify_trend(weekly)
+        result["trend_type"] = trend
         alert_str = f"ALERT ({result['alert_severity']})" if result["alert"] else "ok"
         print(f"  M{meter_id}: baseline={result['baseline_kwh_per_hdd']} "
               f"recent={result['recent_kwh_per_hdd']} "

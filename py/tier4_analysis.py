@@ -361,6 +361,13 @@ def performance_gap(hlc_result: dict, true_htc: float) -> dict:
 # Service #13b — rolling monthly EPC
 # ---------------------------------------------------------------------------
 
+def _ym(ts: str) -> str:
+    """Extract YYYY-MM from either YYYY-MM-DD or DD/MM/YYYY timestamp."""
+    if len(ts) >= 7 and ts[2] == "/":
+        return ts[6:10] + "-" + ts[3:5]
+    return ts[:7]
+
+
 def rolling_epc(indoor: dict[str, dict], dwelling: dict,
                 floor_area: float, property_type: str,
                 build_era: str,
@@ -374,13 +381,13 @@ def rolling_epc(indoor: dict[str, dict], dwelling: dict,
     fits_by_month: dict[str, list] = defaultdict(list)
 
     for ev in events:
-        month_key = ev[0]["timestamp"][:7]
+        month_key = _ym(ev[0]["timestamp"])
         fit = fit_tau(ev)
         if fit:
             fits_by_month[month_key].append(fit)
 
     # Sort months present in data
-    all_months = sorted({ts[:7] for ts in indoor})
+    all_months = sorted({_ym(ts) for ts in indoor})
     results = []
 
     for i, month in enumerate(all_months):

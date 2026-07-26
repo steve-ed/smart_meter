@@ -11,6 +11,7 @@ Requires: data/appliances.csv, internet access to carbonintensity.org.uk
 
 import csv
 import json
+import ssl
 import urllib.request
 from datetime import datetime, timezone
 
@@ -30,7 +31,10 @@ def fetch_carbon_intensity(region_id: int) -> list[dict]:
         now.timestamp() + 48 * 3600, tz=timezone.utc
     ).strftime("%Y-%m-%dT%H:%MZ")
     url = CARBON_API.format(from_ts=from_ts, to_ts=to_ts, region_id=region_id)
-    with urllib.request.urlopen(url, timeout=15) as resp:
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    with urllib.request.urlopen(url, timeout=15, context=ctx) as resp:
         data = json.loads(resp.read())
     periods = []
     for i, entry in enumerate(data["data"]["data"]):

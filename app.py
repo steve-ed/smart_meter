@@ -33,17 +33,58 @@ from config import (
 
 st.set_page_config(page_title="Smart Meter Dashboard", layout="wide")
 
+st.markdown("""
+<style>
+  /* Base font size +25% */
+  html, body, [class*="css"] { font-size: 1.25rem !important; }
+
+  /* Dataframe: larger text, stronger contrast */
+  .stDataFrame table { font-size: 1.1rem !important; }
+  .stDataFrame th {
+    font-size: 1.1rem !important;
+    color: #ffffff !important;
+    background-color: #1a3a5c !important;
+    font-weight: 700 !important;
+  }
+  .stDataFrame td { color: #0d0d0d !important; }
+
+  /* Checkbox ticks in dataframes */
+  .stDataFrame input[type="checkbox"] { transform: scale(1.4); accent-color: #1a7a3c; }
+
+  /* Expander headers */
+  .streamlit-expanderHeader { font-size: 1.15rem !important; font-weight: 600 !important; color: #0d0d0d !important; }
+
+  /* Tab labels */
+  .stTabs [data-baseweb="tab"] { font-size: 1.1rem !important; font-weight: 600 !important; }
+  .stTabs [aria-selected="true"] { color: #032147 !important; border-bottom: 3px solid #209dd7 !important; }
+
+  /* Sidebar text */
+  .css-1d391kg, section[data-testid="stSidebar"] { font-size: 1.1rem !important; }
+
+  /* Metric values */
+  [data-testid="stMetricValue"] { font-size: 1.6rem !important; font-weight: 700 !important; color: #032147 !important; }
+  [data-testid="stMetricLabel"] { font-size: 1.0rem !important; color: #444444 !important; }
+
+  /* Caption text */
+  .stCaption { font-size: 0.95rem !important; color: #333333 !important; }
+</style>
+""", unsafe_allow_html=True)
+
 # ── Session state defaults ──────────────────────────────────────────────────
 
 def _init_state():
     defaults = {
-        "results":       {},     # {service_key: list[dict]}
-        "pytest_output": "",
-        "pytest_passed": None,
-        "pytest_counts": (0, 0),
-        "pytest_duration": 0.0,
-        "last_run_meter": None,
-        "last_run_time":  None,
+        "results":          {},
+        "pytest_output":    "",
+        "pytest_passed":    None,
+        "pytest_counts":    (0, 0),
+        "pytest_duration":  0.0,
+        "last_run_meter":   None,
+        "last_run_time":    None,
+        "is_running":       False,
+        "pending_services": [],
+        "shared_inputs":    None,
+        "run_meter_id":     None,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -59,16 +100,33 @@ def parse_pytest_summary(output: str) -> tuple[int, int]:
     return passed, failed
 
 
-def run_pytest() -> bool:
+def run_pytest(counter_placeholder=None) -> bool:
     """Run full test suite. Returns True if all pass. Updates session_state."""
-    t0 = time.time()
-    proc = subprocess.run(
-        [sys.executable, "-m", "pytest", "-v", "tests/"],
-        capture_output=True,
-        text=True,
+    collect = subprocess.run(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q", "tests/"],
+        capture_output=True, text=True,
     )
+    m = re.search(r"(\d+) test", collect.stdout + collect.stderr)
+    total = int(m.group(1)) if m else 0
+
+    t0 = time.time()
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "pytest", "-v", "tests/"],
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+    )
+
+    lines = []
+    done = 0
+    for line in proc.stdout:
+        lines.append(line)
+        if any(tag in line for tag in ("PASSED", "FAILED", "ERROR")):
+            done += 1
+            if counter_placeholder and total:
+                counter_placeholder.progress(done / total, text=f"Tests: {done} / {total}")
+
+    proc.wait()
     duration = round(time.time() - t0, 1)
-    output = proc.stdout + proc.stderr
+    output = "".join(lines)
     passed, failed = parse_pytest_summary(output)
 
     st.session_state.pytest_output = output
@@ -86,39 +144,143 @@ def _to_rows(result) -> list[dict]:
     return result or []
 
 
-def run_services(meter_id: int) -> None:
-    """Run all 11 services for one meter. Updates st.session_state.results."""
-    results = {}
+ALL_SERVICE_KEYS = [
+    "s13", "s13b", "s13c", "s14",
+    "s01", "s02", "s03", "s04",
+    "s05", "s06", "s07", "s08", "s09", "s10",
+    "s11",
+]
 
-    # Pre-compute shared inputs
+
+def _load_shared_inputs(meter_id: int) -> dict | None:
     try:
         with open("data/eon_tariffs.json") as f:
             eon_products = json.load(f)
         daily_weather = s04._build_daily_weather()
         weather_rows  = load_weather()
         all_days      = load_labeled_days(meter_id, weeks=16)
+        inputs = {
+            "eon_products": eon_products,
+            "daily_weather": daily_weather,
+            "weather_rows": weather_rows,
+            "all_days": all_days,
+        }
+
+        # Tier 4 — indoor temperature and consumption
+        try:
+            import tier4_analysis as t4
+            from config import METERS as _GAS, REGRESSION_START, REGRESSION_END, WINTER_START, WINTER_END
+            mpan = _GAS[meter_id]
+            inputs["tier4"] = {
+                "indoor":  t4.load_indoor(meter_id),
+                "gas":     t4.load_consumption(mpan, "gas",         REGRESSION_START, REGRESSION_END),
+                "elec":    t4.load_consumption(mpan, "electricity",  WINTER_START,     WINTER_END),
+                "tariff":  t4.load_tariff(mpan),
+            }
+        except Exception:
+            inputs["tier4"] = None
+
+        return inputs
     except Exception as e:
         st.error(f"Failed to load service dependencies: {e}")
-        return
+        return None
 
-    # Tier 1
-    results["s01"] = _to_rows(s01.analyse_meter(meter_id, eon_products))
-    results["s02"] = _to_rows(s02.analyse_meter(meter_id))
-    results["s03"] = _to_rows(s03.analyse_meter(meter_id))
-    results["s04"] = _to_rows(s04.analyse_meter(meter_id, daily_weather))
 
-    # Tier 2
-    results["s05"] = _to_rows(s05.analyse_meter(meter_id))
-    results["s06"] = _to_rows(s06.analyse_meter(meter_id))
-    results["s07"] = _to_rows(s07.analyse_meter(meter_id))
-    results["s08"] = _run_s08(meter_id)
-    results["s09"] = _to_rows(s09.analyse_meter(meter_id))
-    results["s10"] = _to_rows(s10.analyse_meter(meter_id, weather_rows))
+def _run_single_service(key: str, meter_id: int, inputs: dict) -> list[dict]:
+    try:
+        if key == "s01":
+            return _to_rows(s01.analyse_meter(meter_id, inputs["eon_products"]))
+        if key == "s02":
+            return _to_rows(s02.analyse_meter(meter_id))
+        if key == "s03":
+            return _to_rows(s03.analyse_meter(meter_id))
+        if key == "s04":
+            return _to_rows(s04.analyse_meter(meter_id, inputs["daily_weather"]))
+        if key == "s05":
+            return _to_rows(s05.analyse_meter(meter_id))
+        if key == "s06":
+            return _to_rows(s06.analyse_meter(meter_id))
+        if key == "s07":
+            return _to_rows(s07.analyse_meter(meter_id))
+        if key == "s08":
+            return _run_s08(meter_id)
+        if key == "s09":
+            return _to_rows(s09.analyse_meter(meter_id))
+        if key == "s10":
+            return _to_rows(s10.analyse_meter(meter_id, inputs["weather_rows"]))
+        if key == "s11":
+            return _to_rows(s11.analyse_meter(meter_id, inputs["all_days"]))
+        if key in ("s13", "s13b", "s13c", "s14"):
+            return _run_tier4(key, meter_id, inputs)
+        return []
+    except Exception as e:
+        return [{"error": str(e)}]
 
-    # Tier 3
-    results["s11"] = _to_rows(s11.analyse_meter(meter_id, all_days))
 
-    st.session_state.results = results
+def _run_tier4(key: str, meter_id: int, inputs: dict) -> list[dict]:
+    t4_in = inputs.get("tier4")
+    if not t4_in:
+        return [{"error": "Indoor temperature data not available for this meter"}]
+
+    import tier4_analysis as t4
+    from home_model import DWELLING_PARAMS, build_dwelling
+    from config import (METERS as _GAS, METER_META,
+                        ELEC_RATE_P_KWH, GAS_RATE_P_KWH,
+                        WINTER_START, WINTER_END)
+
+    mpan       = _GAS[meter_id]
+    params     = DWELLING_PARAMS[meter_id]
+    meta       = METER_META[meter_id]
+    dwelling   = build_dwelling(params)
+    floor_area = params["total_floor_area_m2"]
+
+    if key == "s13":
+        rows = []
+        for mode, overnight in [("all_hours", False), ("overnight_only", True)]:
+            r = t4.analyse_meter(meter_id, mpan, t4_in["indoor"], t4_in["gas"],
+                                 t4_in["elec"], t4_in["tariff"], overnight)
+            if r:
+                rows.append({
+                    "meter_id":        meter_id,
+                    "mode":            mode,
+                    "fit_tau_h":       r["fit_tau"],
+                    "true_tau_h":      r["true_tau"],
+                    "fit_hlc_w_per_k": r["fit_htc"],
+                    "true_htc_w_per_k": r["true_htc"],
+                    "epc_fitted":      r["epc_fitted"],
+                    "epc_true":        r["epc_true"],
+                    "gap_pct":         r["gap_pct"],
+                    "interpretation":  r["interp"],
+                    "n_events":        r["n_events"],
+                })
+            else:
+                rows.append({"meter_id": meter_id, "mode": mode,
+                             "status": "insufficient_events"})
+        return rows
+
+    if key == "s13b":
+        series = t4.rolling_epc(t4_in["indoor"], dwelling, floor_area,
+                                meta["property_type"], meta["build_era"],
+                                overnight_only=True)
+        return [{"meter_id": meter_id, **s} for s in series]
+
+    if key == "s13c":
+        base_load = t4.estimate_base_load(t4_in["gas"])
+        runs      = t4.find_heating_runs(t4_in["indoor"], t4_in["gas"], base_load)
+        result    = t4.heating_phase_regression(runs)
+        if not result:
+            return [{"meter_id": meter_id, "status": "insufficient_heating_runs"}]
+        epc_band = t4.hlc_to_epc_band(result["hlc_w_per_k"] / floor_area)
+        return [{"meter_id": meter_id, "epc_band": epc_band["band"], **result}]
+
+    if key == "s14":
+        result = t4.comfort_cost_report(
+            t4_in["indoor"], t4_in["elec"], t4_in["gas"], t4_in["tariff"],
+            ELEC_RATE_P_KWH, GAS_RATE_P_KWH, WINTER_START, WINTER_END,
+        )
+        return [{"meter_id": meter_id, **result}]
+
+    return []
 
 
 def _run_s08(meter_id: int) -> list[dict]:
@@ -149,6 +311,38 @@ def _run_s08(meter_id: int) -> list[dict]:
         })
     return rows
 
+SERVICE_NAMES = {
+    "s01": "S01 — E.ON Tariff Comparison",
+    "s02": "S02 — Battery Size Optimisation",
+    "s03": "S03 — Appliance Disaggregation",
+    "s04": "S04 — Heat Pump Suitability",
+    "s05": "S05 — Boiler Efficiency Trending",
+    "s06": "S06 — Heating Efficiency Scoring",
+    "s07": "S07 — Degree-Day Budget Forecast",
+    "s08": "S08 — Carbon-Aware Demand Shifting",
+    "s09": "S09 — Heating Pre-Warm Optimisation",
+    "s10": "S10 — Micro-Leak & Frost Detection",
+    "s11": "S11 — Vacancy-Aware Anomaly Suppression",
+    "s13":  "S13 — EPC from Temperature Decay",
+    "s13b": "S13b — Rolling Monthly EPC Band",
+    "s13c": "S13c — Heating-Phase HLC Regression",
+    "s14":  "S14 — Comfort vs Cost",
+}
+
+def _meter_utilities() -> dict[int, list[str]]:
+    """Return {meter_id: ['electricity', 'gas']} derived from config."""
+    from config import METERS as _GAS, ELEC_METERS as _ELEC
+    all_ids = set(_GAS) | set(_ELEC)
+    return {
+        mid: sorted(
+            (["electricity"] if mid in _ELEC else []) +
+            (["gas"]         if mid in _GAS  else [])
+        )
+        for mid in all_ids
+    }
+
+UTILITY_ICONS = {"electricity": "Electric", "gas": "Gas"}
+
 # ── Sidebar ─────────────────────────────────────────────────────────────────
 
 METER_LABELS = {
@@ -167,19 +361,36 @@ with st.sidebar:
     )
     meter_id = next((mid for mid, lbl in METER_LABELS.items() if lbl == selected_label), 1)
 
+    utils = _meter_utilities().get(meter_id, [])
+    badge_html = " &nbsp; ".join(
+        f'<span style="background:#1a7a3c;color:#fff;padding:2px 10px;border-radius:12px;font-size:0.9rem;font-weight:600">{UTILITY_ICONS[u]}</span>'
+        if u == "electricity" else
+        f'<span style="background:#c45c00;color:#fff;padding:2px 10px;border-radius:12px;font-size:0.9rem;font-weight:600">{UTILITY_ICONS[u]}</span>'
+        for u in utils
+    )
+    st.markdown(badge_html or "_No data found_", unsafe_allow_html=True)
+    st.divider()
+
     run_clicked = st.button("▶ Run All", use_container_width=True, type="primary")
 
     if run_clicked:
-        with st.spinner("Running tests…"):
-            tests_ok = run_pytest()
+        counter_ph = st.empty()
+        st.info("Running tests (~50s)…")
+        tests_ok = run_pytest(counter_ph)
+        counter_ph.empty()
         if not tests_ok:
             st.sidebar.error("Tests failed — services not run")
         else:
-            with st.spinner(f"Running services for M{meter_id}…"):
-                run_services(meter_id)
-            st.session_state.last_run_meter = meter_id
-            st.session_state.last_run_time = time.strftime("%Y-%m-%d %H:%M")
-            st.rerun()
+            inputs = _load_shared_inputs(meter_id)
+            if inputs:
+                st.session_state.results = {}
+                st.session_state.is_running = True
+                st.session_state.pending_services = list(ALL_SERVICE_KEYS)
+                st.session_state.shared_inputs = inputs
+                st.session_state.run_meter_id = meter_id
+                st.session_state.last_run_meter = meter_id
+                st.session_state.last_run_time = time.strftime("%Y-%m-%d %H:%M")
+                st.rerun()
 
     st.divider()
     st.markdown("**Last Run**")
@@ -192,30 +403,22 @@ with st.sidebar:
         st.markdown(f":{color}[✓ Tests {passed}/{passed + failed}]")
 
         results = st.session_state.results
-        tier1 = sum(1 for k in ["s01", "s02", "s03", "s04"] if k in results)
-        tier2 = sum(1 for k in ["s05", "s06", "s07", "s08", "s09", "s10"] if k in results)
-        tier3 = sum(1 for k in ["s11"] if k in results)
-        st.markdown(f":green[✓ Tier 1 {tier1}/4]")
-        st.markdown(f":green[✓ Tier 2 {tier2}/6]")
-        st.markdown(f":green[✓ Tier 3 {tier3}/1]")
-        st.caption(st.session_state.last_run_time)
+        done = len(results)
+        total = len(ALL_SERVICE_KEYS)
+        if st.session_state.is_running:
+            next_key = st.session_state.pending_services[0] if st.session_state.pending_services else ""
+            st.caption(f"Running {SERVICE_NAMES.get(next_key, '')}…")
+            st.progress(done / total)
+        else:
+            tier1 = sum(1 for k in ["s01", "s02", "s03", "s04"] if k in results)
+            tier2 = sum(1 for k in ["s05", "s06", "s07", "s08", "s09", "s10"] if k in results)
+            tier3 = sum(1 for k in ["s11"] if k in results)
+            st.markdown(f":green[✓ Tier 1 {tier1}/4]")
+            st.markdown(f":green[✓ Tier 2 {tier2}/6]")
+            st.markdown(f":green[✓ Tier 3 {tier3}/1]")
+            st.caption(st.session_state.last_run_time)
 
 # ── Display helpers ──────────────────────────────────────────────────────────
-
-SERVICE_NAMES = {
-    "s01": "S01 — E.ON Tariff Comparison",
-    "s02": "S02 — Battery Size Optimisation",
-    "s03": "S03 — Appliance Disaggregation",
-    "s04": "S04 — Heat Pump Suitability",
-    "s05": "S05 — Boiler Efficiency Trending",
-    "s06": "S06 — Heating Efficiency Scoring",
-    "s07": "S07 — Degree-Day Budget Forecast",
-    "s08": "S08 — Carbon-Aware Demand Shifting",
-    "s09": "S09 — Heating Pre-Warm Optimisation",
-    "s10": "S10 — Micro-Leak & Frost Detection",
-    "s11": "S11 — Vacancy-Aware Anomaly Suppression",
-}
-
 
 def _show_service(key: str) -> None:
     name = SERVICE_NAMES[key]
@@ -286,8 +489,8 @@ def save_tariffs(tariffs: list[dict]) -> None:
 
 # ── Main tabs ────────────────────────────────────────────────────────────────
 
-tab_t1, tab_t2, tab_t3, tab_tests, tab_cfg = st.tabs(
-    ["Tier 1", "Tier 2", "Tier 3", "Tests", "Config"]
+tab_t1, tab_t2, tab_t3, tab_t4, tab_tests, tab_cfg = st.tabs(
+    ["Tier 1", "Tier 2", "Tier 3", "Tier 4", "Tests", "Config"]
 )
 
 with tab_t1:
@@ -309,6 +512,13 @@ with tab_t3:
     if st.session_state.last_run_meter:
         st.caption(f"Results for M{st.session_state.last_run_meter}")
     _show_service("s11")
+
+with tab_t4:
+    st.markdown("### Tier 4 — Building Physics & EPC")
+    if st.session_state.last_run_meter:
+        st.caption(f"Results for M{st.session_state.last_run_meter}")
+    for key in ["s13", "s13b", "s13c", "s14"]:
+        _show_service(key)
 
 with tab_tests:
     st.markdown("### Test Results")
@@ -390,3 +600,19 @@ with tab_cfg:
         save_tariffs(updated_tariffs)
         st.success("Saved.")
         st.rerun()
+
+# ── Incremental service execution ────────────────────────────────────────────
+
+if st.session_state.is_running and st.session_state.pending_services:
+    next_key = st.session_state.pending_services[0]
+    result = _run_single_service(
+        next_key,
+        st.session_state.run_meter_id,
+        st.session_state.shared_inputs,
+    )
+    st.session_state.results[next_key] = result
+    st.session_state.pending_services = st.session_state.pending_services[1:]
+    if not st.session_state.pending_services:
+        st.session_state.is_running = False
+        st.session_state.shared_inputs = None
+    st.rerun()

@@ -17,15 +17,19 @@ def load_electricity(meter_id: int,
     Filters out readings above ELEC_CAP_KWH.
     """
     mpan = ELEC_METERS[meter_id]
+    seen: set[str] = set()
     rows = []
     with open(path, newline="") as f:
         for row in csv.DictReader(f):
             if row["mpxn"] != mpan or row["utility"] != "electricity":
                 continue
+            ts = row["timestamp"]           # "YYYY-MM-DD HH:MM"
+            if ts in seen:
+                continue
+            seen.add(ts)
             val = float(row["value"])
             if val > ELEC_CAP_KWH:
                 continue
-            ts = row["timestamp"]           # "YYYY-MM-DD HH:MM"
             dt = datetime.strptime(ts, "%Y-%m-%d %H:%M")
             rows.append({
                 "timestamp":    ts,
@@ -61,7 +65,8 @@ def load_tariff_rates(mpan: str,
                 standing_rows.append((row["timestamp"], float(row["value"])))
 
     period_rates   = {p: v for p, (_, v) in unit_rows.items()}
-    standing_p_day = max(standing_rows, key=lambda x: x[0])[1] if standing_rows else 0.0
+    # CSV values are in £/day despite the unit label; convert to p/day
+    standing_p_day = max(standing_rows, key=lambda x: x[0])[1] * 100 if standing_rows else 0.0
     return period_rates, standing_p_day
 
 
@@ -130,7 +135,7 @@ def annual_cost_for_tariff(readings: list[dict],
     for r in readings:
         unit_cost_p += r["elec_kwh"] * rate_for_period(bands, r["period_index"])
 
-    scale = 365 / days if days < 365 else 1.0
+    scale = 365 / days
     unit_annual_p     = unit_cost_p * scale
     standing_annual_p = standing_p_day * 365
 

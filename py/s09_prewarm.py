@@ -127,12 +127,9 @@ def analyse_meter(meter_id: int) -> dict:
 
     result = recommend_start_time(forecast_temp, slope, intercept, target_period, r_sq)
 
-    print(f"  M{meter_id}: R²={r_sq:.2f}  "
-          f"obs={len(obs)}  "
-          f"forecast={forecast_temp:.1f}°C  "
-          + (f"start={result['recommended_start_time']} "
-             f"(±{result['uncertainty_periods']} periods)"
-             if result.get("recommendation") is not False else result.get("message", "")))
+    start_str = (f"start={result['recommended_start_time']} (±{result['uncertainty_periods']} periods)"
+                 if result.get("recommended_start_time") else result.get("message", ""))
+    print(f"  M{meter_id}: R²={r_sq:.2f}  obs={len(obs)}  forecast={forecast_temp:.1f}°C  {start_str}")
 
     return {
         "meter_id":                meter_id,
