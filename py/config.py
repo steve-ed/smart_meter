@@ -7,11 +7,21 @@ Shared configuration for all analysis scripts.
 # ---------------------------------------------------------------------------
 
 METERS = {
-    1: "1234567891000",
-    2: "2234567891000",
-    3: "5330642497188",
-    4: "1099999999981",
-    5: "1099999999990",
+    1:  "1234567891000",
+    2:  "2234567891000",
+    3:  "5330642497188",
+    4:  "1099999999981",
+    5:  "1099999999990",
+    6:  "1234567891004",
+    7:  "1234567891006",
+    8:  "1234567891012",
+    9:  "1234567891014",
+    10: "1234567891020",
+    11: "1234567891022",
+    12: "1234567891028",
+    13: "1234567891036",
+    14: "1234567891038",
+    # M15 has no gas meter
 }
 
 METER_MPANS = list(METERS.values())
@@ -63,11 +73,21 @@ CARBON_REGION_ID = 12   # West Yorkshire DNO region (National Grid ESO)
 # ---------------------------------------------------------------------------
 
 METER_META = {
-    1: {"property_type": "semi",     "build_era": "1945_1980"},
-    2: {"property_type": "semi",     "build_era": "post_1980"},
-    3: {"property_type": "detached", "build_era": "post_1980"},
-    4: {"property_type": "terraced", "build_era": "pre_1945"},
-    5: {"property_type": "semi",     "build_era": "post_1980"},
+    1:  {"property_type": "semi",     "build_era": "1945_1980"},
+    2:  {"property_type": "semi",     "build_era": "post_1980"},
+    3:  {"property_type": "detached", "build_era": "post_1980"},
+    4:  {"property_type": "terraced", "build_era": "pre_1945"},
+    5:  {"property_type": "semi",     "build_era": "post_1980"},
+    6:  {"property_type": "semi", "build_era": "1945_1980", "build_year": 1975},
+    7:  {"property_type": "semi", "build_era": "1945_1980", "build_year": 1980},
+    8:  {"property_type": "semi", "build_era": "post_1980", "build_year": 1985},
+    9:  {"property_type": "semi", "build_era": "post_1980", "build_year": 1990},
+    10: {"property_type": "semi", "build_era": "post_1980", "build_year": 1995},
+    11: {"property_type": "semi", "build_era": "post_1980", "build_year": 2000},
+    12: {"property_type": "semi", "build_era": "post_1980", "build_year": 2005},
+    13: {"property_type": "semi", "build_era": "post_1980", "build_year": 2010},
+    14: {"property_type": "semi", "build_era": "post_1980", "build_year": 2015},
+    15: {"property_type": "semi", "build_era": "post_1980", "build_year": 2020},
 }
 
 # ---------------------------------------------------------------------------
@@ -75,9 +95,31 @@ METER_META = {
 # ---------------------------------------------------------------------------
 
 ELEC_METERS = {
-    1: "1234567891000",
-    2: "1234567891002",
-    3: "1234567891008",
-    4: "1234567891010",
-    5: "1234567891024",
+    1:  "1234567891000",
+    2:  "1234567891002",
+    3:  "1234567891008",
+    4:  "1234567891010",
+    5:  "1234567891024",
+    6:  "1234567891004",
+    7:  "1234567891006",
+    8:  "1234567891012",
+    9:  "1234567891014",
+    10: "1234567891020",
+    11: "1234567891022",
+    12: "1234567891028",
+    13: "1234567891036",
+    14: "1234567891038",
+    15: "0061448158717",
 }
+
+# ---------------------------------------------------------------------------
+# Solar generation meter MPXNs (separate generation meter per household)
+# ---------------------------------------------------------------------------
+
+SOLAR_METERS = {
+    2:  "2234567891000",
+    3:  "5330642497188",
+    14: "1234567891038",
+}
+
+SEG_RATE_P_KWH = 15.0   # Smart Export Guarantee pence/kWh
