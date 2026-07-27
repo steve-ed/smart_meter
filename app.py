@@ -29,9 +29,11 @@ from tier3_lib import load_labeled_days
 import importlib
 import config as _cfg
 importlib.reload(_cfg)
+from tier1_lib import load_solar_generation, compute_annual_export
 from config import (
     METER_META,
     GAS_RATE_P_KWH, ELEC_RATE_P_KWH,
+    SOLAR_METERS, SEG_RATE_P_KWH,
     WINTER_START, WINTER_END,
     REGRESSION_START, REGRESSION_END,
 )
@@ -472,8 +474,7 @@ def _consumption_summary(meter_id: int, gas_rate: float, elec_rate: float,
     plus a totals row.  Cache key includes rates and today_ym so it
     invalidates correctly when config is saved or midnight passes.
     """
-    from config import METERS as _GAS, ELEC_METERS as _ELEC, SOLAR_METERS as _SOLAR, SEG_RATE_P_KWH as _SEG
-    from tier1_lib import load_solar_generation, compute_annual_export
+    from config import METERS as _GAS, ELEC_METERS as _ELEC
     from tier4_analysis import load_consumption
 
     wide_start = "2020-01-01"
@@ -489,7 +490,7 @@ def _consumption_summary(meter_id: int, gas_rate: float, elec_rate: float,
     for ts, kwh in elec_raw.items():
         monthly_elec[ts[:7]] = monthly_elec.get(ts[:7], 0.0) + kwh
 
-    is_solar = meter_id in _SOLAR
+    is_solar = meter_id in SOLAR_METERS
     monthly_solar_gen:    dict[str, float] = {}
     monthly_solar_export: dict[str, float] = {}
 
@@ -526,7 +527,7 @@ def _consumption_summary(meter_id: int, gas_rate: float, elec_rate: float,
             exp_kwh = monthly_solar_export.get(ym, 0.0)
             row["solar_kwh"]        = round(sol_kwh, 1)
             row["export_kwh"]       = round(exp_kwh, 1)
-            row["seg_earnings_gbp"] = round(exp_kwh * _SEG / 100, 2)
+            row["seg_earnings_gbp"] = round(exp_kwh * SEG_RATE_P_KWH / 100, 2)
         rows.append(row)
 
     if rows:
