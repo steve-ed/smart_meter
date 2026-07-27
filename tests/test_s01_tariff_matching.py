@@ -89,7 +89,7 @@ def test_rank_alternatives_excludes_actual_products():
         {"name": "E.ON Next Flex", "product_type": "actual", "standing_p_day": None, "bands": []}
     ]
     ranked = rank_alternatives(readings, current_gbp, products)
-    assert all(r["product_type"] != "actual" for r in ranked)
+    assert all(r["type"] != "actual" for r in ranked)
 
 def test_rank_alternatives_sorted_best_saving_first():
     readings = _readings()
@@ -126,3 +126,41 @@ def test_flag_too_close_false_when_no_saving():
     ]
     result = flag_too_close(ranked, threshold_gbp=20.0)
     assert result[0]["too_close"] is False
+
+
+# --- SEG earnings columns ---
+# These tests build rows the same way analyse_meter does, without file I/O.
+
+def _make_s01_row(annual_cost_gbp, seg_earnings_gbp):
+    """Simulate one output row from analyse_meter with SEG fields."""
+    return {
+        "meter_id":                1,
+        "product":                 "E.ON Next Fixed",
+        "type":                    "flat",
+        "rates":                   "24.0p/kWh all-day | 50.0p/day standing",
+        "current_annual_cost_gbp": annual_cost_gbp,
+        "annual_cost_gbp":         annual_cost_gbp,
+        "saving_vs_current_gbp":   0.0,
+        "saving_pct":              0.0,
+        "night_fraction":          0.25,
+        "too_close":               False,
+        "rank":                    0,
+        "seg_earnings_gbp":        seg_earnings_gbp,
+        "net_cost_gbp":            round(annual_cost_gbp - seg_earnings_gbp, 2),
+    }
+
+def test_seg_earnings_fields_present_in_all_rows():
+    row = _make_s01_row(annual_cost_gbp=1000.0, seg_earnings_gbp=0.0)
+    assert "seg_earnings_gbp" in row
+    assert "net_cost_gbp" in row
+
+def test_net_cost_equals_annual_minus_seg_for_all_rows():
+    row = _make_s01_row(annual_cost_gbp=1000.0, seg_earnings_gbp=75.50)
+    assert row["net_cost_gbp"] == pytest.approx(924.50, rel=0.001)
+
+def test_seg_earnings_zero_for_non_solar_meter():
+    from config import SOLAR_METERS
+    assert 1 not in SOLAR_METERS
+    row = _make_s01_row(annual_cost_gbp=800.0, seg_earnings_gbp=0.0)
+    assert row["seg_earnings_gbp"] == 0.0
+    assert row["net_cost_gbp"] == pytest.approx(800.0, rel=0.001)
