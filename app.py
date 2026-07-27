@@ -10,6 +10,8 @@ import streamlit as st
 
 sys.path.insert(0, "py")
 
+import tier1_lib as _t1
+
 import s01_tariff_matching as s01
 import s02_battery_sizing as s02
 import s03_disaggregation as s03
@@ -29,7 +31,6 @@ from tier3_lib import load_labeled_days
 import importlib
 import config as _cfg
 importlib.reload(_cfg)
-from tier1_lib import load_solar_generation, compute_annual_export
 from config import (
     METER_META,
     GAS_RATE_P_KWH, ELEC_RATE_P_KWH,
@@ -496,7 +497,9 @@ def _consumption_summary(meter_id: int, gas_rate: float, elec_rate: float,
 
     if is_solar:
         from datetime import datetime as _dt
-        gen_rows = load_solar_generation(meter_id)
+        import importlib as _il
+        _tier1 = _il.import_module('tier1_lib')
+        gen_rows = _tier1.load_solar_generation(meter_id)
         cons_map = {ts: kwh for ts, kwh in elec_raw.items()}
         for g in gen_rows:
             ym   = g["timestamp"][:7]
