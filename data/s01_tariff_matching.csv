@@ -1,16 +1,43 @@
-meter_id,product,product_type,annual_cost_gbp,saving_vs_current_gbp,saving_pct,night_fraction,too_close,rank
-1,E.ON Next Flex,actual,1987.36,0.0,0.0,0.2396,True,1
-1,E.ON Next Drive,two_rate,2967.66,-980.3,-49.3,0.2396,True,2
-1,E.ON Next Fixed,flat,3693.36,-1706.0,-85.8,0.2396,True,3
-2,E.ON Next Flex,actual,12056.64,0.0,0.0,0.2253,True,1
-2,E.ON Next Drive,two_rate,17270.75,-5214.11,-43.2,0.2253,True,2
-2,E.ON Next Fixed,flat,21033.13,-8976.49,-74.5,0.2253,True,3
-3,E.ON Next Flex,actual,15116.03,0.0,0.0,0.2555,True,1
-3,E.ON Next Drive,two_rate,19908.79,-4792.76,-31.7,0.2555,True,2
-3,E.ON Next Fixed,flat,24439.49,-9323.46,-61.7,0.2555,True,3
-4,E.ON Next Flex,actual,13735.04,0.0,0.0,0.2722,True,1
-4,E.ON Next Drive,two_rate,18194.43,-4459.39,-32.5,0.2722,True,2
-4,E.ON Next Fixed,flat,22005.92,-8270.88,-60.2,0.2722,True,3
-5,E.ON Next Drive,two_rate,11444.81,5139.01,31.0,0.2421,False,1
-5,E.ON Next Fixed,flat,14709.61,1874.21,11.3,0.2421,False,2
-5,E.ON Next Flex,actual,16583.82,0.0,0.0,0.2421,False,3
+meter_id,product,product_type,current_annual_cost_gbp,annual_cost_gbp,saving_vs_current_gbp,saving_pct,night_fraction,too_close,rank
+1,E.ON Next Flex,"actual | 8.78p 00:00–06:30, 16.29p 07:00–22:30, 8.78p 23:00–23:30 | 20.0p/day standing",855.83,855.83,0.0,0.0,0.2394,False,0
+1,E.ON Next Drive,"two_rate | 7.5p 00:00–06:30, 24.5p 07:00–23:30 | 50.0p/day standing",855.83,1280.12,-424.29,-49.6,0.2394,False,1
+1,E.ON Next Fixed,flat | 24.0p/kWh all-day | 50.0p/day standing,855.83,1565.71,-709.88,-82.9,0.2394,False,2
+2,E.ON Next Flex,"actual | 8.78p 00:00–06:30, 16.29p 07:00–22:30, 8.78p 23:00–23:30 | 20.0p/day standing",832.87,832.87,0.0,0.0,0.2126,False,0
+2,E.ON Next Drive,"two_rate | 7.5p 00:00–06:30, 24.5p 07:00–23:30 | 50.0p/day standing",832.87,1260.07,-427.2,-51.3,0.2126,False,1
+2,E.ON Next Fixed,flat | 24.0p/kWh all-day | 50.0p/day standing,832.87,1496.13,-663.26,-79.6,0.2126,False,2
+3,E.ON Next Flex,"actual | 6.41p 00:00–06:30, 14.02p 07:00–15:30, 29.99p 16:00–19:30, 14.02p 20:00–23:30 | 20.0p/day standing",1022.49,1022.49,0.0,0.0,0.3024,False,0
+3,E.ON Next Drive,"two_rate | 7.5p 00:00–06:30, 24.5p 07:00–23:30 | 50.0p/day standing",1022.49,1421.79,-399.3,-39.1,0.3024,False,1
+3,E.ON Next Fixed,flat | 24.0p/kWh all-day | 50.0p/day standing,1022.49,1708.07,-685.58,-67.1,0.3024,False,2
+4,E.ON Next Flex,"actual | 6.41p 00:00–06:30, 14.02p 07:00–15:30, 29.99p 16:00–19:30, 14.02p 20:00–23:30 | 20.0p/day standing",938.06,938.06,0.0,0.0,0.2715,False,0
+4,E.ON Next Drive,"two_rate | 7.5p 00:00–06:30, 24.5p 07:00–23:30 | 50.0p/day standing",938.06,1317.13,-379.07,-40.4,0.2715,False,1
+4,E.ON Next Fixed,flat | 24.0p/kWh all-day | 50.0p/day standing,938.06,1557.52,-619.46,-66.0,0.2715,False,2
+5,E.ON Next Flex,"actual | 3.99p 00:00–07:30, 11.76p 08:00–15:30, 67.2p 16:00–23:30 | 20.0p/day standing",1464.13,1464.13,0.0,0.0,0.2386,False,0
+5,E.ON Next Drive,"two_rate | 7.5p 00:00–06:30, 24.5p 07:00–23:30 | 50.0p/day standing",1464.13,1128.19,335.94,22.9,0.2386,False,1
+5,E.ON Next Fixed,flat | 24.0p/kWh all-day | 50.0p/day standing,1464.13,1402.07,62.06,4.2,0.2386,False,2
+6,E.ON Next Flex,actual (default) | 24.0p/kWh all-day | no standing charge,1221.21,1221.21,0.0,0.0,0.248,False,0
+6,E.ON Next Drive,"two_rate | 7.5p 00:00–06:30, 24.5p 07:00–23:30 | 50.0p/day standing",1221.21,1196.63,24.58,2.0,0.248,False,1
+6,E.ON Next Fixed,flat | 24.0p/kWh all-day | 50.0p/day standing,1221.21,1403.71,-182.5,-14.9,0.248,False,2
+7,E.ON Next Flex,actual (default) | 24.0p/kWh all-day | no standing charge,1355.22,1355.22,0.0,0.0,0.2554,False,0
+7,E.ON Next Drive,"two_rate | 7.5p 00:00–06:30, 24.5p 07:00–23:30 | 50.0p/day standing",1355.22,1254.42,100.8,7.4,0.2554,False,1
+7,E.ON Next Fixed,flat | 24.0p/kWh all-day | 50.0p/day standing,1355.22,1537.72,-182.5,-13.5,0.2554,False,2
+8,E.ON Next Flex,actual (default) | 24.0p/kWh all-day | no standing charge,1210.16,1210.16,0.0,0.0,0.2627,False,0
+8,E.ON Next Drive,"two_rate | 7.5p 00:00–06:30, 24.5p 07:00–23:30 | 50.0p/day standing",1210.16,1183.09,27.07,2.2,0.2627,False,1
+8,E.ON Next Fixed,flat | 24.0p/kWh all-day | 50.0p/day standing,1210.16,1392.66,-182.5,-15.1,0.2627,False,2
+9,E.ON Next Flex,actual (default) | 24.0p/kWh all-day | no standing charge,1231.2,1231.2,0.0,0.0,0.2646,False,0
+9,E.ON Next Drive,"two_rate | 7.5p 00:00–06:30, 24.5p 07:00–23:30 | 50.0p/day standing",1231.2,1187.49,43.71,3.6,0.2646,False,1
+9,E.ON Next Fixed,flat | 24.0p/kWh all-day | 50.0p/day standing,1231.2,1413.7,-182.5,-14.8,0.2646,False,2
+10,E.ON Next Flex,actual (default) | 24.0p/kWh all-day | no standing charge,1334.24,1334.24,0.0,0.0,0.2825,False,0
+10,E.ON Next Drive,"two_rate | 7.5p 00:00–06:30, 24.5p 07:00–23:30 | 50.0p/day standing",1334.24,1273.64,60.6,4.5,0.2825,False,1
+10,E.ON Next Fixed,flat | 24.0p/kWh all-day | 50.0p/day standing,1334.24,1516.74,-182.5,-13.7,0.2825,False,2
+11,E.ON Next Flex,actual (default) | 24.0p/kWh all-day | no standing charge,1118.05,1118.05,0.0,0.0,0.2444,False,0
+11,E.ON Next Drive,"two_rate | 7.5p 00:00–06:30, 24.5p 07:00–23:30 | 50.0p/day standing",1118.05,1114.75,3.3,0.3,0.2444,True,1
+11,E.ON Next Fixed,flat | 24.0p/kWh all-day | 50.0p/day standing,1118.05,1300.55,-182.5,-16.3,0.2444,True,2
+12,E.ON Next Flex,actual (default) | 24.0p/kWh all-day | no standing charge,1191.86,1191.86,0.0,0.0,0.2439,False,0
+12,E.ON Next Drive,"two_rate | 7.5p 00:00–06:30, 24.5p 07:00–23:30 | 50.0p/day standing",1191.86,1168.58,23.28,2.0,0.2439,False,1
+12,E.ON Next Fixed,flat | 24.0p/kWh all-day | 50.0p/day standing,1191.86,1374.36,-182.5,-15.3,0.2439,False,2
+13,E.ON Next Flex,actual (default) | 24.0p/kWh all-day | no standing charge,1322.64,1322.64,0.0,0.0,0.2935,False,0
+13,E.ON Next Drive,"two_rate | 7.5p 00:00–06:30, 24.5p 07:00–23:30 | 50.0p/day standing",1322.64,1316.25,6.39,0.5,0.2935,True,1
+13,E.ON Next Fixed,flat | 24.0p/kWh all-day | 50.0p/day standing,1322.64,1505.14,-182.5,-13.8,0.2935,True,2
+14,E.ON Next Flex,actual (default) | 24.0p/kWh all-day | no standing charge,893.23,893.23,0.0,0.0,0.2905,False,0
+14,E.ON Next Drive,"two_rate | 7.5p 00:00–06:30, 24.5p 07:00–23:30 | 50.0p/day standing",893.23,912.71,-19.48,-2.2,0.2905,False,1
+14,E.ON Next Fixed,flat | 24.0p/kWh all-day | 50.0p/day standing,893.23,1075.73,-182.5,-20.4,0.2905,False,2

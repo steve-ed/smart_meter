@@ -1,6 +1,8 @@
 import os
 from datetime import date
 
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
@@ -215,13 +217,11 @@ def build_text_table(days, savings, paybacks, profile_label, config):
     return lines
 
 
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-import matplotlib.colors as mcolors
-import matplotlib.dates as mdates
-
-
 def plot_heatmap(savings, paybacks, profile_label, config_label):
+    import matplotlib.pyplot as plt
+    import matplotlib.patches as mpatches
+    import matplotlib.colors as mcolors
+    import matplotlib.dates as mdates
     n_panels = len(PANEL_SIZES_KWP)
     n_batts = len(BATTERY_SIZES_KWH)
     data = np.clip(paybacks, 0, 20)

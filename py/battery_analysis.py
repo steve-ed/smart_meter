@@ -10,8 +10,8 @@ BATTERY_CONFIGS = [
 MIN_SOC = 0.20
 WARRANTY_YEARS = 15
 
-MPAN = "1234567891000"
-METER_NUMBER = 1
+MPAN = "1234567891024"
+METER_NUMBER = 5
 DATA_DIR = "data"
 
 
@@ -161,6 +161,24 @@ def build_config_table(days, base_total, base_high, base_low, off_peak, peak, co
     return lines
 
 
+DOW_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+
+def build_dow_table(merged):
+    merged = merged.copy()
+    merged["dow"] = merged["timestamp"].dt.dayofweek
+    daily = merged.groupby(["date", "dow"])["consumption_kwh"].sum().reset_index()
+    dow_avg = daily.groupby("dow")["consumption_kwh"].mean()
+
+    lines = ["-- Average Daily Consumption by Day of Week --"]
+    lines.append(f"{'Day':>10} | {'Avg kWh/day':>12}")
+    lines.append("-" * 10 + "-+-" + "-" * 12)
+    for dow, name in enumerate(DOW_NAMES):
+        avg = dow_avg.get(dow, float("nan"))
+        lines.append(f"{name:>10} | {avg:>12.2f}")
+    return lines
+
+
 def main():
     merged = load_data()
     days = build_daily_arrays(merged)
@@ -189,6 +207,9 @@ def main():
     for config in BATTERY_CONFIGS:
         lines.extend(build_config_table(days, base_total, base_high, base_low, off_peak, peak, config))
         lines.append("")
+
+    lines.extend(build_dow_table(merged))
+    lines.append("")
 
     output = "\n".join(lines)
     print(output)

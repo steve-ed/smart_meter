@@ -23,6 +23,8 @@ Performance gaps (fitted HLC vs true HTC) are all classified as *consistent with
 
 ## Service #13b — Rolling Monthly EPC Band
 
+Each calendar month the τ fitting is re-run over a trailing 8-week window of overnight decay events. The reported band is the EPC classification of the median τ across that window.
+
 | M | Months | Band distribution |
 |---|--------|-------------------|
 | 1 | 15 | F × 15 |
@@ -37,13 +39,15 @@ No spurious month-to-month band flipping. The 8-week rolling aggregate is stable
 
 ## Service #14 — Comfort vs Cost
 
-| M | Dwelling | Winter Cost | Comfort (18–22°C) | Cold periods | Health risk (<16°C) | Vacant spend |
+| M | Dwelling | Winter Cost | Comfort (18–22°C) | Cold periods (30-min) | Health risk <16°C (30-min) | Vacant spend |
 |---|----------|-------------|-------------------|--------------|---------------------|--------------|
 | 1 | 1970s semi | £855.64 | 15.1% | 4,452 | 2,760 | 21.8% |
 | 2 | 1990s semi | £1,259.21 | 35.6% | 3,630 | 1,651 | 28.1% |
 | 3 | 2005 detached | £1,132.31 | 60.1% | 2,248 | 772 | 24.8% |
 | 4 | Pre-1919 terraced | £1,204.33 | 10.7% | 5,034 | 3,985 | 27.9% |
 | 5 | 2015 semi | £1,164.95 | 87.8% | 685 | 66 | 28.2% |
+
+Comfort window: 07:00–22:30. 30-min period = one smart-meter read interval. Health risk threshold from WHO guidance.
 
 ### Key observations
 
@@ -66,7 +70,7 @@ Running the τ fitting restricted to overnight periods removes the main real-wor
 | 4 | Pre-1919 terraced | 48.5h | 48.5h | −0.6% | −0.7% | 340 | 316 | G = G |
 | 5 | 2015 semi | 133.3h | 133.3h | −0.5% | −0.5% | 338 | 374 | C = C |
 
-On synthetic data the two modes are near-identical (no occupancy noise in the model). On real sensor data the overnight filter is expected to produce a tighter, less biased τ distribution. M5 gains events under the overnight filter because its high insulation (τ = 134h) means the boiler rarely runs overnight, allowing long uninterrupted decay sequences. Event count reduction for other meters is ~10–15%, acceptable given the noise reduction benefit.
+On synthetic data the two modes are near-identical (no occupancy noise in the model). On real sensor data the overnight filter is expected to produce a tighter, less biased τ distribution. M5 gains events under the overnight filter (338 → 374) because its high insulation (τ = 134h) retains enough heat that the boiler rarely fires overnight: the dominant overnight event type is a long, uninterrupted natural cool-down rather than a post-boiler decay, and these sequences are excluded from the all-hours count by the daytime occupancy activity filter but captured cleanly overnight. Event count reduction for other meters is ~10–15%, acceptable given the noise reduction benefit.
 
 **Recommendation:** use overnight-only as the production default.
 
@@ -99,7 +103,7 @@ Bootstrap simulation using 12% event-to-event τ scatter (representative of occu
 | 50 | 83 | 12 | ±3.3% | High confidence |
 | 100 | 166 | 24 | ±2.3% | Needed near band boundaries |
 
-EPC band margins in τ-space are typically 25–50%, so a ±5% CI is sufficient for mid-band properties. The ±4% achieved at 30 events (~7 weeks) is the recommended default operating point.
+EPC band margins in τ-space are typically 25–50%, so a ±5% CI is sufficient for mid-band properties. The ±4% achieved at 30 events (~7 weeks at 60% overnight capture) is the recommended default operating point.
 
 **Caveats:**
 
@@ -137,13 +141,15 @@ All five meters recover HLC within 0.1% and C within 1.1% of ground truth. This 
 
 ### Comparison with cooling-curve results
 
-| M | Dwelling | Cooling HLC err | Heating HLC err | Cooling C source | Heating C err |
-|---|----------|-----------------|-----------------|------------------|---------------|
-| 1 | 1970s semi | +9.6% | **+0.0%** | lookup (175 Wh/K/m²) | −0.8% |
-| 2 | 1990s semi | −8.9% | **−0.0%** | lookup (145 Wh/K/m²) | −0.6% |
-| 3 | 2005 detached | +0.1% | **−0.0%** | lookup (155 Wh/K/m²) | −0.4% |
-| 4 | Pre-1919 terraced | −3.9% | **+0.0%** | lookup (210 Wh/K/m²) | −1.0% |
-| 5 | 2015 semi | +0.4% | **+0.0%** | lookup (145 Wh/K/m²) | −0.4% |
+| M | Dwelling | Cooling HLC err | Heating HLC err | Cooling C density¹ | Heating C err |
+|---|----------|-----------------|-----------------|-------------------|---------------|
+| 1 | 1970s semi | +9.6% | **+0.0%** | 175 Wh/K/m² | −0.8% |
+| 2 | 1990s semi | −8.9% | **−0.0%** | 145 Wh/K/m² | −0.6% |
+| 3 | 2005 detached | +0.1% | **−0.0%** | 155 Wh/K/m² | −0.4% |
+| 4 | Pre-1919 terraced | −3.9% | **+0.0%** | 210 Wh/K/m² | −1.0% |
+| 5 | 2015 semi | +0.4% | **+0.0%** | 145 Wh/K/m² | −0.4% |
+
+¹ Volumetric density multiplied by modelled floor area gives the total C (Wh/K) assumed by the cooling method. The cooling method treats this as known; the heating regression measures it directly, removing the lookup as an error source.
 
 The heating regression eliminates the lookup table bias. On real data the advantage will be smaller (boiler efficiency uncertainty ~±5% maps directly into HLC error) but the method still removes the largest source of systematic error in the cooling approach.
 

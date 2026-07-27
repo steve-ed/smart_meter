@@ -26,7 +26,7 @@ def _daily_mean_temp(weather_rows: list[dict]) -> dict[str, float]:
 def load_labeled_days(
     meter_id: int,
     weeks: int = 16,
-    elec_path: str = "data/consumption.csv",
+    elec_path: str = "data/consumption_clean.csv",
     weather_path: str = "data/weather.csv",
 ) -> list[dict]:
     """

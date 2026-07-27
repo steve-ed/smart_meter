@@ -1,6 +1,6 @@
 import sys
-sys.path.insert(0, ".")
-from app import parse_pytest_summary
+sys.path.insert(0, "py")
+from app_utils import parse_pytest_summary, _rewrite_constant
 
 
 def test_parse_all_passed():
@@ -23,14 +23,11 @@ def test_parse_empty_output():
     assert failed == 0
 
 
-from app import _rewrite_constant
-
-
 def test_rewrite_float_constant():
     content = 'GAS_RATE_P_KWH   = 6.0    # pence/kWh\n'
     result = _rewrite_constant(content, "GAS_RATE_P_KWH", 7.5)
     assert "GAS_RATE_P_KWH   = 7.5" in result
-    assert "# pence/kWh" in result   # comment preserved
+    assert "# pence/kWh" in result
 
 
 def test_rewrite_string_constant():

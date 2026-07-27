@@ -141,7 +141,7 @@ def load_weather(path: str = "data/weather.csv") -> list[dict]:
 
 
 def load_consumption(meter_id: int,
-                     path: str = "data/consumption.csv") -> list[dict]:
+                     path: str = "data/consumption_clean.csv") -> list[dict]:
     """
     Return half-hourly gas kWh rows for one meter, sorted by timestamp.
     Filters out readings above GAS_CAP_M3 (sentinel / error values).

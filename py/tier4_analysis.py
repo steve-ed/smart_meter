@@ -69,6 +69,19 @@ EPC_BANDS = [
     ("G", 3.20, 99.9),
 ]
 
+# UK SAP score ranges per band (high=best within band, low=worst)
+SAP_SCORE_RANGES = {
+    "A": (100, 92),
+    "B": (91,  81),
+    "C": (80,  69),
+    "D": (68,  55),
+    "E": (54,  39),
+    "F": (38,  21),
+    "G": (20,   1),
+}
+
+_BAND_ORDER = [b for b, _, _ in EPC_BANDS]
+
 # Free-cooling event detection thresholds
 MIN_DELTA_T_C        = 3.0    # indoor must exceed outdoor by at least this
 MIN_DECAY_PERIODS    = 4      # minimum event length (2 hours)
@@ -122,7 +135,7 @@ def load_consumption(mpan: str, utility: str,
                      start: str, end: str) -> dict[str, float]:
     """Returns {timestamp: value} filtered to date window."""
     result = {}
-    with open("data/consumption.csv", newline="") as f:
+    with open("data/consumption_clean.csv", newline="") as f:
         for row in csv.DictReader(f):
             if row["mpxn"] != mpan or row["utility"] != utility:
                 continue
@@ -311,12 +324,15 @@ def calculate_hlc(tau: dict, floor_area: float,
     hlc_low  = C / tau["tau_95ci_high"]
     hlc_high = C / tau["tau_95ci_low"]
 
+    conf = epc_band_confidence(hlc_low / floor_area, hlc_high / floor_area)
+
     return {
-        "hlc_w_per_k":    round(hlc, 1),
-        "hlc_95ci_low":   round(hlc_low, 1),
-        "hlc_95ci_high":  round(hlc_high, 1),
-        "hlc_per_m2":     round(hlc / floor_area, 3),
+        "hlc_w_per_k":          round(hlc, 1),
+        "hlc_95ci_low":         round(hlc_low, 1),
+        "hlc_95ci_high":        round(hlc_high, 1),
+        "hlc_per_m2":           round(hlc / floor_area, 3),
         "capacitance_wh_per_k": round(C, 0),
+        **conf,
     }
 
 
@@ -324,8 +340,25 @@ def hlc_to_epc_band(hlc_per_m2: float) -> dict:
     for band, lo, hi in EPC_BANDS:
         if lo <= hlc_per_m2 < hi:
             pos = (hlc_per_m2 - lo) / (hi - lo)
-            return {"band": band, "position": round(pos, 3)}
-    return {"band": "G", "position": 1.0}
+            score_hi, score_lo = SAP_SCORE_RANGES[band]
+            score = round(score_hi - pos * (score_hi - score_lo))
+            return {"band": band, "position": round(pos, 3), "epc_score": score}
+    score_hi, score_lo = SAP_SCORE_RANGES["G"]
+    return {"band": "G", "position": 1.0, "epc_score": score_lo}
+
+
+def epc_band_confidence(hlc_ci_low_per_m2: float, hlc_ci_high_per_m2: float) -> dict:
+    """Confidence level based on how many EPC bands the 95% CI spans."""
+    band_best  = hlc_to_epc_band(hlc_ci_low_per_m2)["band"]   # lower HLC = better
+    band_worst = hlc_to_epc_band(hlc_ci_high_per_m2)["band"]
+    span = abs(_BAND_ORDER.index(band_worst) - _BAND_ORDER.index(band_best))
+    level = "HIGH" if span == 0 else "MEDIUM" if span == 1 else "LOW"
+    return {
+        "epc_band_best":  band_best,
+        "epc_band_worst": band_worst,
+        "ci_band_span":   span,
+        "confidence":     level,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -371,23 +404,23 @@ def _ym(ts: str) -> str:
 def rolling_epc(indoor: dict[str, dict], dwelling: dict,
                 floor_area: float, property_type: str,
                 build_era: str,
-                overnight_only: bool = False) -> list[dict]:
+                overnight_only: bool = False,
+                precomputed: dict | None = None) -> list[dict]:
     """
     Compute tau and EPC band for each calendar month using events
     within an 8-week rolling window ending at month end.
     """
-    # Group events by month
-    events = find_free_cooling_events(indoor, overnight_only=overnight_only)
-    fits_by_month: dict[str, list] = defaultdict(list)
-
-    for ev in events:
-        month_key = _ym(ev[0]["timestamp"])
-        fit = fit_tau(ev)
-        if fit:
-            fits_by_month[month_key].append(fit)
-
-    # Sort months present in data
-    all_months = sorted({_ym(ts) for ts in indoor})
+    if precomputed is not None:
+        fits_by_month = defaultdict(list, precomputed["fits_by_month"])
+        all_months    = precomputed["all_months"]
+    else:
+        events = find_free_cooling_events(indoor, overnight_only=overnight_only)
+        fits_by_month = defaultdict(list)
+        for ev in events:
+            fit = fit_tau(ev)
+            if fit:
+                fits_by_month[_ym(ev[0]["timestamp"])].append(fit)
+        all_months = sorted({_ym(ts) for ts in indoor})
     results = []
 
     for i, month in enumerate(all_months):
@@ -408,12 +441,16 @@ def rolling_epc(indoor: dict[str, dict], dwelling: dict,
         hlc    = calculate_hlc(tau_agg, floor_area, property_type, build_era)
         band   = hlc_to_epc_band(hlc["hlc_per_m2"])
         results.append({
-            "month":      month,
-            "band":       band["band"],
-            "tau_hours":  tau_agg["tau_hours"],
-            "hlc_w_per_k": hlc["hlc_w_per_k"],
-            "n_events":   tau_agg["n_events"],
-            "status":     "ok",
+            "month":          month,
+            "band":           band["band"],
+            "epc_score":      band["epc_score"],
+            "epc_band_best":  hlc["epc_band_best"],
+            "epc_band_worst": hlc["epc_band_worst"],
+            "confidence":     hlc["confidence"],
+            "tau_hours":      tau_agg["tau_hours"],
+            "hlc_w_per_k":    hlc["hlc_w_per_k"],
+            "n_events":       tau_agg["n_events"],
+            "status":         "ok",
         })
 
     return results
@@ -523,7 +560,8 @@ def find_heating_runs(indoor: dict[str, dict],
     return runs
 
 
-def heating_phase_regression(runs: list[list[dict]]) -> dict | None:
+def heating_phase_regression(runs: list[list[dict]],
+                              floor_area: float = 0.0) -> dict | None:
     """
     OLS on all post-transient heating periods across all runs:
 
@@ -588,13 +626,27 @@ def heating_phase_regression(runs: list[list[dict]]) -> dict | None:
 
     tau = c_wh_k / hlc
 
+    sigma_sq  = ss_res / max(n - 2, 1)
+    se_hlc    = (sigma_sq * s22 / det) ** 0.5
+    hlc_ci_lo = hlc - 1.96 * se_hlc
+    hlc_ci_hi = hlc + 1.96 * se_hlc
+
+    conf = epc_band_confidence(
+        max(hlc_ci_lo, 0.01) / floor_area if floor_area else 0.01,
+        hlc_ci_hi / floor_area if floor_area else hlc_ci_hi,
+    ) if floor_area else {"epc_band_best": None, "epc_band_worst": None,
+                          "ci_band_span": None, "confidence": None}
+
     return {
-        "hlc_w_per_k":  round(hlc, 1),
-        "c_wh_k":       round(c_wh_k, 0),
-        "tau_hours":    round(tau, 1),
-        "r_squared":    round(r2, 4),
-        "n_points":     n,
-        "n_runs":       len(runs),
+        "hlc_w_per_k":   round(hlc, 1),
+        "hlc_95ci_low":  round(hlc_ci_lo, 1),
+        "hlc_95ci_high": round(hlc_ci_hi, 1),
+        "c_wh_k":        round(c_wh_k, 0),
+        "tau_hours":     round(tau, 1),
+        "r_squared":     round(r2, 4),
+        "n_points":      n,
+        "n_runs":        len(runs),
+        **conf,
     }
 
 
@@ -628,13 +680,49 @@ def write_rolling_epc_csv(meter_num: int, series: list[dict]):
 
 
 # ---------------------------------------------------------------------------
+# Pre-computation cache (shared across S13 / S13b / S13c)
+# ---------------------------------------------------------------------------
+
+def precompute_free_cooling(indoor: dict[str, dict]) -> dict:
+    """
+    Run event detection and tau fitting once for both modes.
+    Returns dict with 'all_hours' and 'overnight' good-fit lists.
+    Callers pass this to analyse_meter / rolling_epc to avoid re-scanning.
+    """
+    all_events   = find_free_cooling_events(indoor, overnight_only=False)
+    night_events = find_free_cooling_events(indoor, overnight_only=True)
+
+    def _fits(events):
+        return [f for f in (fit_tau(ev) for ev in events) if f]
+
+    all_fits = _fits(all_events)
+
+    # Fit overnight events once — reuse for both aggregate and monthly grouping
+    fits_by_month: dict[str, list] = defaultdict(list)
+    night_fits = []
+    for ev in night_events:
+        fit = fit_tau(ev)
+        if fit:
+            night_fits.append(fit)
+            fits_by_month[_ym(ev[0]["timestamp"])].append(fit)
+
+    return {
+        "all_hours":     all_fits,
+        "overnight":     night_fits,
+        "fits_by_month": dict(fits_by_month),
+        "all_months":    sorted({_ym(ts) for ts in indoor}),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
 def analyse_meter(meter_num: int, mpan: str, indoor: dict,
                   gas: dict, elec: dict, tariff: dict,
-                  overnight_only: bool) -> dict | None:
-    """Run #13/#13a/#13b for one meter under one event-filter mode."""
+                  overnight_only: bool,
+                  precomputed: dict | None = None) -> dict | None:
+    """Run #13/#13a for one meter under one event-filter mode."""
     params     = DWELLING_PARAMS[meter_num]
     meta       = METER_META[meter_num]
     dwelling   = build_dwelling(params)
@@ -643,9 +731,12 @@ def analyse_meter(meter_num: int, mpan: str, indoor: dict,
     true_tau   = dwelling["tau_hours"]
     true_band  = hlc_to_epc_band(true_htc / floor_area)
 
-    events = find_free_cooling_events(indoor, overnight_only=overnight_only)
-    fits   = [fit_tau(ev) for ev in events]
-    good   = [f for f in fits if f]
+    if precomputed is not None:
+        good = precomputed["overnight"] if overnight_only else precomputed["all_hours"]
+    else:
+        events = find_free_cooling_events(indoor, overnight_only=overnight_only)
+        fits   = [fit_tau(ev) for ev in events]
+        good   = [f for f in fits if f]
 
     tau_agg = aggregate_tau(good)
     if tau_agg is None:
@@ -657,19 +748,22 @@ def analyse_meter(meter_num: int, mpan: str, indoor: dict,
     gap         = performance_gap(hlc_result, true_htc)
 
     return {
-        "m":          meter_num,
-        "label":      params["label"],
-        "true_htc":   true_htc,
-        "true_tau":   true_tau,
-        "fit_tau":    tau_agg["tau_hours"],
-        "tau_lo":     tau_agg["tau_95ci_low"],
-        "tau_hi":     tau_agg["tau_95ci_high"],
-        "fit_htc":    hlc_result["hlc_w_per_k"],
-        "gap_pct":    gap["gap_pct"],
-        "interp":     gap["interpretation"],
-        "epc_true":   true_band["band"],
-        "epc_fitted": band_result["band"],
-        "n_events":   len(good),
+        "m":              meter_num,
+        "label":          params["label"],
+        "true_htc":       true_htc,
+        "true_tau":       true_tau,
+        "fit_tau":        tau_agg["tau_hours"],
+        "tau_lo":         tau_agg["tau_95ci_low"],
+        "tau_hi":         tau_agg["tau_95ci_high"],
+        "fit_htc":        hlc_result["hlc_w_per_k"],
+        "gap_pct":        gap["gap_pct"],
+        "interp":         gap["interpretation"],
+        "epc_true":       true_band["band"],
+        "epc_fitted":     band_result["band"],
+        "epc_band_best":  hlc_result["epc_band_best"],
+        "epc_band_worst": hlc_result["epc_band_worst"],
+        "confidence":     hlc_result["confidence"],
+        "n_events":       len(good),
     }
 
 
@@ -772,7 +866,7 @@ def main():
         # --- Service #13c: heating-phase regression ---
         base_load = estimate_base_load(gas)
         h_runs    = find_heating_runs(indoor, gas, base_load)
-        h_result  = heating_phase_regression(h_runs)
+        h_result  = heating_phase_regression(h_runs, floor_area)
         if h_result:
             true_htc   = dwelling["htc"]
             true_c     = dwelling["c_wh_k"]
