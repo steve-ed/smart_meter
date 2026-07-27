@@ -125,3 +125,34 @@ def test_annual_cost_scales_short_sample():
     # 30 days * 48 * 1 kWh * 20p = 28,800p, scaled * (365/30) = 350,400p = £3,504
     assert result["unit_cost_gbp"] == pytest.approx(3504.0, abs=5.0)
     assert result["days_in_sample"] == 30
+
+
+# --- load_solar_generation ---
+
+def test_load_solar_generation_returns_empty_for_non_solar_meter(tmp_path):
+    from tier1_lib import load_solar_generation
+    # meter_id 99 is not in SOLAR_METERS
+    result = load_solar_generation(99, path=str(tmp_path / "production_clean.csv"))
+    assert result == []
+
+def test_load_solar_generation_reads_rows_for_solar_meter(tmp_path):
+    from tier1_lib import load_solar_generation
+    import csv as _csv
+    p = tmp_path / "production_clean.csv"
+    with open(p, "w", newline="") as f:
+        w = _csv.DictWriter(f, fieldnames=["mpxn","utility","reading_type","device_id","timestamp","value","unit"])
+        w.writeheader()
+        # M3 MPXN
+        w.writerow({"mpxn":"5330642497188","utility":"electricity","reading_type":"production",
+                    "device_id":"x","timestamp":"2024-06-01 12:00","value":"1.5","unit":"kWh"})
+        w.writerow({"mpxn":"5330642497188","utility":"electricity","reading_type":"production",
+                    "device_id":"x","timestamp":"2024-06-01 12:30","value":"2.0","unit":"kWh"})
+        # Different meter — should be excluded
+        w.writerow({"mpxn":"9999999999999","utility":"electricity","reading_type":"production",
+                    "device_id":"x","timestamp":"2024-06-01 12:00","value":"5.0","unit":"kWh"})
+    result = load_solar_generation(3, path=str(p))
+    assert len(result) == 2
+    assert result[0]["solar_kwh"] == pytest.approx(1.5, rel=0.001)
+    assert result[1]["solar_kwh"] == pytest.approx(2.0, rel=0.001)
+    assert result[0]["timestamp"] == "2024-06-01 12:00"
+    assert result[0]["period_index"] == 24   # 12:00 → period 24

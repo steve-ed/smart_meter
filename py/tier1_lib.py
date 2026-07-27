@@ -7,11 +7,11 @@ import csv
 import statistics
 from datetime import datetime, timedelta
 
-from config import ELEC_METERS, ELEC_CAP_KWH
+from config import ELEC_METERS, ELEC_CAP_KWH, ELEC_RATE_P_KWH, SOLAR_METERS
 
 
 def load_electricity(meter_id: int,
-                     path: str = "data/consumption.csv") -> list[dict]:
+                     path: str = "data/consumption_clean.csv") -> list[dict]:
     """
     Return half-hourly electricity rows for one meter, sorted by timestamp.
     Filters out readings above ELEC_CAP_KWH.
@@ -35,6 +35,38 @@ def load_electricity(meter_id: int,
                 "timestamp":    ts,
                 "elec_kwh":     round(val, 4),
                 "weekday":      dt.weekday(),
+                "period_index": dt.hour * 2 + dt.minute // 30,
+            })
+    return sorted(rows, key=lambda r: r["timestamp"])
+
+
+def load_solar_generation(meter_id: int,
+                           path: str = "data/production_clean.csv") -> list[dict]:
+    """
+    Return half-hourly solar generation rows for one meter, sorted by timestamp.
+    Returns [] if meter_id is not in SOLAR_METERS.
+    Filters out readings above ELEC_CAP_KWH.
+    """
+    if meter_id not in SOLAR_METERS:
+        return []
+    mpxn = SOLAR_METERS[meter_id]
+    seen: set[str] = set()
+    rows = []
+    with open(path, newline="") as f:
+        for row in csv.DictReader(f):
+            if row["mpxn"] != mpxn:
+                continue
+            ts = row["timestamp"]
+            if ts in seen:
+                continue
+            seen.add(ts)
+            val = float(row["value"])
+            if val > ELEC_CAP_KWH:
+                continue
+            dt = datetime.strptime(ts, "%Y-%m-%d %H:%M")
+            rows.append({
+                "timestamp":    ts,
+                "solar_kwh":    round(val, 4),
                 "period_index": dt.hour * 2 + dt.minute // 30,
             })
     return sorted(rows, key=lambda r: r["timestamp"])
@@ -65,6 +97,8 @@ def load_tariff_rates(mpan: str,
                 standing_rows.append((row["timestamp"], float(row["value"])))
 
     period_rates   = {p: v for p, (_, v) in unit_rows.items()}
+    if not period_rates:
+        period_rates = {p: ELEC_RATE_P_KWH for p in range(48)}
     # CSV values are in £/day despite the unit label; convert to p/day
     standing_p_day = max(standing_rows, key=lambda x: x[0])[1] * 100 if standing_rows else 0.0
     return period_rates, standing_p_day
