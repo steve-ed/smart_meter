@@ -605,6 +605,29 @@ def _price_cap_data() -> list[dict]:
     ]
 
 
+def _price_cap_chart(data: list[dict], field: str, title: str, color: str):
+    import plotly.graph_objects as go
+    quarters = [row["quarter"] for row in data]
+    values = [row[field] for row in data]
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=quarters,
+        y=values,
+        mode="lines+markers",
+        line={"color": color, "width": 2},
+        marker={"size": 6},
+        name=title,
+    ))
+    fig.update_layout(
+        title=title,
+        xaxis_title="Quarter",
+        margin={"t": 40, "b": 20, "l": 20, "r": 20},
+        height=220,
+        showlegend=False,
+    )
+    return fig
+
+
 # ── Main tabs ────────────────────────────────────────────────────────────────
 
 tab_t1, tab_t2, tab_t3, tab_t4, tab_tests, tab_cfg = st.tabs(

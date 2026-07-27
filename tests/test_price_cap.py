@@ -52,3 +52,54 @@ def test_all_values_are_positive_floats():
         for k in numeric_keys:
             assert isinstance(row[k], (int, float)), f"{k} not numeric in {row['quarter']}"
             assert row[k] > 0, f"{k} not positive in {row['quarter']}"
+
+
+import plotly.graph_objects as go
+
+
+def _price_cap_chart(data: list[dict], field: str, title: str, color: str) -> go.Figure:
+    """Local copy for testing — must match app.py exactly."""
+    quarters = [row["quarter"] for row in data]
+    values = [row[field] for row in data]
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=quarters,
+        y=values,
+        mode="lines+markers",
+        line={"color": color, "width": 2},
+        marker={"size": 6},
+        name=title,
+    ))
+    fig.update_layout(
+        title=title,
+        xaxis_title="Quarter",
+        margin={"t": 40, "b": 20, "l": 20, "r": 20},
+        height=220,
+        showlegend=False,
+    )
+    return fig
+
+
+def test_chart_returns_figure():
+    data = _price_cap_data()
+    fig = _price_cap_chart(data, "elec_unit", "Unit Rate (p/kWh)", "#209dd7")
+    assert isinstance(fig, go.Figure)
+
+
+def test_chart_has_one_trace():
+    data = _price_cap_data()
+    fig = _price_cap_chart(data, "elec_unit", "Unit Rate (p/kWh)", "#209dd7")
+    assert len(fig.data) == 1
+
+
+def test_chart_trace_has_correct_length():
+    data = _price_cap_data()
+    fig = _price_cap_chart(data, "gas_unit", "Gas Unit Rate", "#753991")
+    assert len(fig.data[0].x) == 9
+    assert len(fig.data[0].y) == 9
+
+
+def test_chart_first_x_value():
+    data = _price_cap_data()
+    fig = _price_cap_chart(data, "elec_standing", "Standing Charge", "#209dd7")
+    assert fig.data[0].x[0] == "Q3 2023"
