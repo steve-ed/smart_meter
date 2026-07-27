@@ -589,6 +589,22 @@ def save_tariffs(tariffs: list[dict]) -> None:
     _atomic_write("data/eon_tariffs.json", json.dumps(tariffs, indent=2))
 
 
+# ── Price cap data ───────────────────────────────────────────────────────────
+
+def _price_cap_data() -> list[dict]:
+    return [
+        {"quarter": "Q3 2023", "elec_unit": 29.00, "elec_standing": 52.97, "gas_unit": 7.30,  "gas_standing": 29.62},
+        {"quarter": "Q4 2023", "elec_unit": 27.35, "elec_standing": 52.97, "gas_unit": 6.89,  "gas_standing": 29.62},
+        {"quarter": "Q1 2024", "elec_unit": 28.62, "elec_standing": 53.37, "gas_unit": 7.20,  "gas_standing": 29.60},
+        {"quarter": "Q2 2024", "elec_unit": 24.50, "elec_standing": 61.64, "gas_unit": 6.04,  "gas_standing": 31.41},
+        {"quarter": "Q3 2024", "elec_unit": 22.36, "elec_standing": 61.64, "gas_unit": 5.48,  "gas_standing": 31.41},
+        {"quarter": "Q4 2024", "elec_unit": 24.50, "elec_standing": 61.64, "gas_unit": 6.24,  "gas_standing": 31.41},
+        {"quarter": "Q1 2025", "elec_unit": 24.50, "elec_standing": 61.64, "gas_unit": 6.24,  "gas_standing": 31.41},
+        {"quarter": "Q2 2025", "elec_unit": 25.05, "elec_standing": 61.64, "gas_unit": 6.33,  "gas_standing": 31.41},
+        {"quarter": "Q3 2025", "elec_unit": 24.50, "elec_standing": 61.64, "gas_unit": 6.24,  "gas_standing": 31.41},
+    ]
+
+
 # ── Main tabs ────────────────────────────────────────────────────────────────
 
 tab_t1, tab_t2, tab_t3, tab_t4, tab_tests, tab_cfg = st.tabs(
