@@ -20,10 +20,15 @@ import s07_budget_forecast as s07
 import s09_prewarm as s09
 import s10_leak_frost as s10
 import s11_anomaly_suppression as s11
+import tier4_analysis as t4
 
+from app_utils import parse_pytest_summary, _rewrite_constant
 from tier2_lib import load_weather
 from tier3_lib import load_labeled_days
 
+import importlib
+import config as _cfg
+importlib.reload(_cfg)
 from config import (
     METER_META,
     GAS_RATE_P_KWH, ELEC_RATE_P_KWH,
@@ -94,21 +99,8 @@ _init_state()
 
 # ── Pytest runner ────────────────────────────────────────────────────────────
 
-def parse_pytest_summary(output: str) -> tuple[int, int]:
-    passed = int(m.group(1)) if (m := re.search(r"(\d+) passed", output)) else 0
-    failed = int(m.group(1)) if (m := re.search(r"(\d+) failed", output)) else 0
-    return passed, failed
-
-
 def run_pytest(counter_placeholder=None) -> bool:
     """Run full test suite. Returns True if all pass. Updates session_state."""
-    collect = subprocess.run(
-        [sys.executable, "-m", "pytest", "--collect-only", "-q", "tests/"],
-        capture_output=True, text=True,
-    )
-    m = re.search(r"(\d+) test", collect.stdout + collect.stderr)
-    total = int(m.group(1)) if m else 0
-
     t0 = time.time()
     proc = subprocess.Popen(
         [sys.executable, "-m", "pytest", "-v", "tests/"],
@@ -117,8 +109,13 @@ def run_pytest(counter_placeholder=None) -> bool:
 
     lines = []
     done = 0
+    total = 0
     for line in proc.stdout:
         lines.append(line)
+        if not total:
+            m = re.search(r"collected (\d+) item", line)
+            if m:
+                total = int(m.group(1))
         if any(tag in line for tag in ("PASSED", "FAILED", "ERROR")):
             done += 1
             if counter_placeholder and total:
@@ -168,17 +165,18 @@ def _load_shared_inputs(meter_id: int) -> dict | None:
 
         # Tier 4 — indoor temperature and consumption
         try:
-            import tier4_analysis as t4
             from config import METERS as _GAS, REGRESSION_START, REGRESSION_END, WINTER_START, WINTER_END
-            mpan = _GAS[meter_id]
+            mpan   = _GAS[meter_id]
+            indoor = t4.load_indoor(meter_id)
             inputs["tier4"] = {
-                "indoor":  t4.load_indoor(meter_id),
-                "gas":     t4.load_consumption(mpan, "gas",         REGRESSION_START, REGRESSION_END),
-                "elec":    t4.load_consumption(mpan, "electricity",  WINTER_START,     WINTER_END),
-                "tariff":  t4.load_tariff(mpan),
+                "indoor":      indoor,
+                "gas":         t4.load_consumption(mpan, "gas",        REGRESSION_START, REGRESSION_END),
+                "elec":        t4.load_consumption(mpan, "electricity", WINTER_START,     WINTER_END),
+                "tariff":      t4.load_tariff(mpan),
+                "precomputed": None,  # populated lazily by S13
             }
-        except Exception:
-            inputs["tier4"] = None
+        except Exception as _e4:
+            inputs["tier4"] = {"error": str(_e4)}
 
         return inputs
     except Exception as e:
@@ -221,37 +219,45 @@ def _run_tier4(key: str, meter_id: int, inputs: dict) -> list[dict]:
     t4_in = inputs.get("tier4")
     if not t4_in:
         return [{"error": "Indoor temperature data not available for this meter"}]
+    if "error" in t4_in:
+        return [{"error": f"Tier 4 load failed: {t4_in['error']}"}]
 
-    import tier4_analysis as t4
-    from home_model import DWELLING_PARAMS, build_dwelling
     from config import (METERS as _GAS, METER_META,
                         ELEC_RATE_P_KWH, GAS_RATE_P_KWH,
                         WINTER_START, WINTER_END)
 
     mpan       = _GAS[meter_id]
-    params     = DWELLING_PARAMS[meter_id]
+    params     = t4.DWELLING_PARAMS[meter_id]
     meta       = METER_META[meter_id]
-    dwelling   = build_dwelling(params)
+    dwelling   = t4.build_dwelling(params)
     floor_area = params["total_floor_area_m2"]
+
+    precomputed = t4_in.get("precomputed")
 
     if key == "s13":
         rows = []
         for mode, overnight in [("all_hours", False), ("overnight_only", True)]:
             r = t4.analyse_meter(meter_id, mpan, t4_in["indoor"], t4_in["gas"],
-                                 t4_in["elec"], t4_in["tariff"], overnight)
+                                 t4_in["elec"], t4_in["tariff"], overnight,
+                                 precomputed=precomputed)
             if r:
+                epc = t4.hlc_to_epc_band(r["fit_htc"] / floor_area)
                 rows.append({
-                    "meter_id":        meter_id,
-                    "mode":            mode,
-                    "fit_tau_h":       r["fit_tau"],
-                    "true_tau_h":      r["true_tau"],
-                    "fit_hlc_w_per_k": r["fit_htc"],
+                    "meter_id":         meter_id,
+                    "mode":             mode,
+                    "fit_tau_h":        r["fit_tau"],
+                    "true_tau_h":       r["true_tau"],
+                    "fit_hlc_w_per_k":  r["fit_htc"],
                     "true_htc_w_per_k": r["true_htc"],
-                    "epc_fitted":      r["epc_fitted"],
-                    "epc_true":        r["epc_true"],
-                    "gap_pct":         r["gap_pct"],
-                    "interpretation":  r["interp"],
-                    "n_events":        r["n_events"],
+                    "epc_fitted":       r["epc_fitted"],
+                    "epc_score":        epc["epc_score"],
+                    "epc_band_best":    r.get("epc_band_best", ""),
+                    "epc_band_worst":   r.get("epc_band_worst", ""),
+                    "confidence":       r.get("confidence", ""),
+                    "epc_true":         r["epc_true"],
+                    "gap_pct":          r["gap_pct"],
+                    "interpretation":   r["interp"],
+                    "n_events":         r["n_events"],
                 })
             else:
                 rows.append({"meter_id": meter_id, "mode": mode,
@@ -261,17 +267,30 @@ def _run_tier4(key: str, meter_id: int, inputs: dict) -> list[dict]:
     if key == "s13b":
         series = t4.rolling_epc(t4_in["indoor"], dwelling, floor_area,
                                 meta["property_type"], meta["build_era"],
-                                overnight_only=True)
-        return [{"meter_id": meter_id, **s} for s in series]
+                                overnight_only=True, precomputed=precomputed)
+        rows = []
+        for s in series:
+            row = {"meter_id": meter_id, **s}
+            if s.get("status") == "ok" and s.get("hlc_w_per_k"):
+                epc = t4.hlc_to_epc_band(s["hlc_w_per_k"] / floor_area)
+                row["epc_score"] = epc["epc_score"]
+            rows.append(row)
+        return rows
 
     if key == "s13c":
         base_load = t4.estimate_base_load(t4_in["gas"])
         runs      = t4.find_heating_runs(t4_in["indoor"], t4_in["gas"], base_load)
-        result    = t4.heating_phase_regression(runs)
+        result    = t4.heating_phase_regression(runs, floor_area)
         if not result:
             return [{"meter_id": meter_id, "status": "insufficient_heating_runs"}]
-        epc_band = t4.hlc_to_epc_band(result["hlc_w_per_k"] / floor_area)
-        return [{"meter_id": meter_id, "epc_band": epc_band["band"], **result}]
+        epc = t4.hlc_to_epc_band(result["hlc_w_per_k"] / floor_area)
+        return [{"meter_id": meter_id,
+                 "epc_band":       epc["band"],
+                 "epc_score":      epc["epc_score"],
+                 "epc_band_best":  result.get("epc_band_best", ""),
+                 "epc_band_worst": result.get("epc_band_worst", ""),
+                 "confidence":     result.get("confidence", ""),
+                 **result}]
 
     if key == "s14":
         result = t4.comfort_cost_report(
@@ -345,10 +364,13 @@ UTILITY_ICONS = {"electricity": "Electric", "gas": "Gas"}
 
 # ── Sidebar ─────────────────────────────────────────────────────────────────
 
-METER_LABELS = {
-    mid: f"M{mid} — {meta['property_type'].capitalize()} ({meta['build_era'].replace('_', ' ')})"
-    for mid, meta in METER_META.items()
-}
+def _meter_label(mid: int, meta: dict) -> str:
+    base = f"M{mid} — {meta['property_type'].capitalize()}"
+    if "build_year" in meta:
+        return f"{base} ({meta['build_year']})"
+    return f"{base} ({meta['build_era'].replace('_', ' ')})"
+
+METER_LABELS = {mid: _meter_label(mid, meta) for mid, meta in METER_META.items()}
 
 with st.sidebar:
     st.markdown("## ⚡ Smart Meter")
@@ -440,17 +462,93 @@ def _show_service(key: str) -> None:
         st.dataframe(rows, use_container_width=True)
 
 
+# ── Consumption summary ──────────────────────────────────────────────────────
+
+@st.cache_data(show_spinner=False)
+def _consumption_summary(meter_id: int, gas_rate: float, elec_rate: float,
+                          today_ym: str) -> list[dict]:
+    """
+    Monthly gas + electricity kWh and cost for the last 12 complete months,
+    plus a totals row.  Cache key includes rates and today_ym so it
+    invalidates correctly when config is saved or midnight passes.
+    """
+    from config import METERS as _GAS, ELEC_METERS as _ELEC, SOLAR_METERS as _SOLAR, SEG_RATE_P_KWH as _SEG
+    from tier1_lib import load_solar_generation, compute_annual_export
+    from tier4_analysis import load_consumption
+
+    wide_start = "2020-01-01"
+    wide_end   = "2099-12-31"
+
+    gas_raw  = load_consumption(_GAS[meter_id],  "gas",         wide_start, wide_end) if meter_id in _GAS  else {}
+    elec_raw = load_consumption(_ELEC[meter_id], "electricity", wide_start, wide_end) if meter_id in _ELEC else {}
+
+    monthly_gas:  dict[str, float] = {}
+    monthly_elec: dict[str, float] = {}
+    for ts, kwh in gas_raw.items():
+        monthly_gas[ts[:7]]  = monthly_gas.get(ts[:7], 0.0)  + kwh
+    for ts, kwh in elec_raw.items():
+        monthly_elec[ts[:7]] = monthly_elec.get(ts[:7], 0.0) + kwh
+
+    is_solar = meter_id in _SOLAR
+    monthly_solar_gen:    dict[str, float] = {}
+    monthly_solar_export: dict[str, float] = {}
+
+    if is_solar:
+        from datetime import datetime as _dt
+        gen_rows = load_solar_generation(meter_id)
+        cons_map = {ts: kwh for ts, kwh in elec_raw.items()}
+        for g in gen_rows:
+            ym   = g["timestamp"][:7]
+            gen  = g["solar_kwh"]
+            cons = cons_map.get(g["timestamp"], 0.0)
+            monthly_solar_gen[ym]    = monthly_solar_gen.get(ym, 0.0)    + gen
+            monthly_solar_export[ym] = monthly_solar_export.get(ym, 0.0) + max(0.0, gen - cons)
+
+    all_months = sorted(set(monthly_gas) | set(monthly_elec))
+    last_12 = [m for m in all_months if m < today_ym][-12:]
+
+    rows = []
+    for ym in last_12:
+        gas_kwh  = monthly_gas.get(ym, 0.0)
+        elec_kwh = monthly_elec.get(ym, 0.0)
+        gas_gbp  = round(gas_kwh  * gas_rate  / 100, 2)
+        elec_gbp = round(elec_kwh * elec_rate / 100, 2)
+        row = {
+            "month":          ym,
+            "gas_kwh":        round(gas_kwh, 1),
+            "gas_cost_gbp":   gas_gbp,
+            "elec_kwh":       round(elec_kwh, 1),
+            "elec_cost_gbp":  elec_gbp,
+            "total_cost_gbp": round(gas_gbp + elec_gbp, 2),
+        }
+        if is_solar:
+            sol_kwh = monthly_solar_gen.get(ym, 0.0)
+            exp_kwh = monthly_solar_export.get(ym, 0.0)
+            row["solar_kwh"]        = round(sol_kwh, 1)
+            row["export_kwh"]       = round(exp_kwh, 1)
+            row["seg_earnings_gbp"] = round(exp_kwh * _SEG / 100, 2)
+        rows.append(row)
+
+    if rows:
+        total_row = {
+            "month":          "TOTAL",
+            "gas_kwh":        round(sum(r["gas_kwh"]        for r in rows), 1),
+            "gas_cost_gbp":   round(sum(r["gas_cost_gbp"]   for r in rows), 2),
+            "elec_kwh":       round(sum(r["elec_kwh"]       for r in rows), 1),
+            "elec_cost_gbp":  round(sum(r["elec_cost_gbp"]  for r in rows), 2),
+            "total_cost_gbp": round(sum(r["total_cost_gbp"] for r in rows), 2),
+        }
+        if is_solar:
+            total_row["solar_kwh"]        = round(sum(r.get("solar_kwh", 0.0)        for r in rows), 1)
+            total_row["export_kwh"]       = round(sum(r.get("export_kwh", 0.0)       for r in rows), 1)
+            total_row["seg_earnings_gbp"] = round(sum(r.get("seg_earnings_gbp", 0.0) for r in rows), 2)
+        rows.append(total_row)
+
+    return rows
+
+
 # ── Config helpers ───────────────────────────────────────────────────────────
 
-def _rewrite_constant(content: str, name: str, value) -> str:
-    """Replace the value of a constant in config.py content, preserving comments."""
-    val_str = f'"{value}"' if isinstance(value, str) else f"{value:.10g}"
-    return re.sub(
-        rf'^({re.escape(name)}\s*=\s*)("[^"]*"|\d+\.?\d*)',
-        rf'\g<1>{val_str}',
-        content,
-        flags=re.MULTILINE,
-    )
 
 
 def _atomic_write(path: str, content: str) -> None:
@@ -495,8 +593,24 @@ tab_t1, tab_t2, tab_t3, tab_t4, tab_tests, tab_cfg = st.tabs(
 
 with tab_t1:
     st.markdown(f"### Tier 1 — Smart Energy Services")
-    if st.session_state.last_run_meter:
-        st.caption(f"Results for M{st.session_state.last_run_meter}")
+    st.caption(f"Consumption: M{meter_id}" +
+               (f"  |  Service results: M{st.session_state.last_run_meter}"
+                if st.session_state.last_run_meter and st.session_state.last_run_meter != meter_id
+                else ""))
+
+    with st.expander("Monthly Consumption — Gas & Electricity", expanded=True):
+        try:
+            summary = _consumption_summary(
+                meter_id, GAS_RATE_P_KWH, ELEC_RATE_P_KWH,
+                time.strftime("%Y-%m"),
+            )
+            if summary:
+                st.dataframe(summary, use_container_width=True, hide_index=True)
+            else:
+                st.caption("No consumption data available for this meter.")
+        except Exception as _e:
+            st.caption(f"Could not load consumption summary: {_e}")
+
     for key in ["s01", "s02", "s03", "s04"]:
         _show_service(key)
 
@@ -552,15 +666,16 @@ with tab_cfg:
     col_left, col_right = st.columns(2)
 
     with col_left:
+        import config as _live_cfg
         st.markdown("#### Energy Rates")
-        new_gas  = st.number_input("Gas Rate (p/kWh)",  value=float(GAS_RATE_P_KWH),  step=0.1, format="%.2f")
-        new_elec = st.number_input("Electricity Rate (p/kWh)", value=float(ELEC_RATE_P_KWH), step=0.1, format="%.2f")
+        new_gas  = st.number_input("Gas Rate (p/kWh)",  value=float(_live_cfg.GAS_RATE_P_KWH),  step=0.1, format="%.2f")
+        new_elec = st.number_input("Electricity Rate (p/kWh)", value=float(_live_cfg.ELEC_RATE_P_KWH), step=0.1, format="%.2f")
 
         st.markdown("#### Analysis Window")
-        new_winter_start = st.text_input("Winter Start (YYYY-MM-DD)", value=WINTER_START)
-        new_winter_end   = st.text_input("Winter End (YYYY-MM-DD)",   value=WINTER_END)
-        new_reg_start    = st.text_input("Regression Start (YYYY-MM-DD)", value=REGRESSION_START)
-        new_reg_end      = st.text_input("Regression End (YYYY-MM-DD)",   value=REGRESSION_END)
+        new_winter_start = st.text_input("Winter Start (YYYY-MM-DD)", value=_live_cfg.WINTER_START)
+        new_winter_end   = st.text_input("Winter End (YYYY-MM-DD)",   value=_live_cfg.WINTER_END)
+        new_reg_start    = st.text_input("Regression Start (YYYY-MM-DD)", value=_live_cfg.REGRESSION_START)
+        new_reg_end      = st.text_input("Regression End (YYYY-MM-DD)",   value=_live_cfg.REGRESSION_END)
 
     with col_right:
         st.markdown("#### E.ON Tariffs")
@@ -593,12 +708,18 @@ with tab_cfg:
                     "bands": updated_bands,
                 })
 
+    if st.session_state.get("_config_saved"):
+        st.session_state._config_saved = False
+        st.toast("Configuration saved.", icon="✅")
+
     if st.button("💾 Save Changes"):
         save_config(new_gas, new_elec,
                     new_winter_start, new_winter_end,
                     new_reg_start, new_reg_end)
         save_tariffs(updated_tariffs)
-        st.success("Saved.")
+        import importlib, config as _cfg
+        importlib.reload(_cfg)
+        st.session_state._config_saved = True
         st.rerun()
 
 # ── Incremental service execution ────────────────────────────────────────────
