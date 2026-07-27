@@ -72,6 +72,36 @@ def load_solar_generation(meter_id: int,
     return sorted(rows, key=lambda r: r["timestamp"])
 
 
+def compute_annual_export(consumption_rows: list[dict],
+                           generation_rows: list[dict]) -> dict:
+    """
+    Estimate annual export kWh by comparing generation and consumption per timestamp.
+    export per half-hour = max(0, generation - consumption).
+    Scales sample to 365 days. Returns zeros if generation_rows is empty.
+    """
+    if not generation_rows:
+        return {"annual_export_kwh": 0.0, "annual_generation_kwh": 0.0, "days_in_sample": 0}
+
+    consumption_map = {r["timestamp"]: r["elec_kwh"] for r in consumption_rows}
+
+    total_export_kwh = 0.0
+    total_gen_kwh    = 0.0
+    for g in generation_rows:
+        gen  = g["solar_kwh"]
+        cons = consumption_map.get(g["timestamp"], 0.0)
+        total_export_kwh += max(0.0, gen - cons)
+        total_gen_kwh    += gen
+
+    days  = len(set(r["timestamp"][:10] for r in generation_rows))
+    scale = 365 / days
+
+    return {
+        "annual_export_kwh":     round(total_export_kwh * scale, 2),
+        "annual_generation_kwh": round(total_gen_kwh    * scale, 2),
+        "days_in_sample":        days,
+    }
+
+
 def load_tariff_rates(mpan: str,
                       path: str = "data/tariff.csv") -> tuple[dict[int, float], float]:
     """

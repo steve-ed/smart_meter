@@ -156,3 +156,70 @@ def test_load_solar_generation_reads_rows_for_solar_meter(tmp_path):
     assert result[1]["solar_kwh"] == pytest.approx(2.0, rel=0.001)
     assert result[0]["timestamp"] == "2024-06-01 12:00"
     assert result[0]["period_index"] == 24   # 12:00 → period 24
+
+
+# --- compute_annual_export ---
+
+def _make_consumption(timestamps_kwh: list[tuple[str, float]]) -> list[dict]:
+    rows = []
+    for ts, kwh in timestamps_kwh:
+        from datetime import datetime as _dt
+        d = _dt.strptime(ts, "%Y-%m-%d %H:%M")
+        rows.append({
+            "timestamp":    ts,
+            "elec_kwh":     kwh,
+            "weekday":      d.weekday(),
+            "period_index": d.hour * 2 + d.minute // 30,
+        })
+    return rows
+
+def _make_generation(timestamps_kwh: list[tuple[str, float]]) -> list[dict]:
+    rows = []
+    for ts, kwh in timestamps_kwh:
+        from datetime import datetime as _dt
+        d = _dt.strptime(ts, "%Y-%m-%d %H:%M")
+        rows.append({
+            "timestamp":    ts,
+            "solar_kwh":    kwh,
+            "period_index": d.hour * 2 + d.minute // 30,
+        })
+    return rows
+
+def test_compute_annual_export_zero_when_no_generation():
+    from tier1_lib import compute_annual_export
+    consumption = _make_consumption([("2024-06-01 12:00", 1.0)])
+    result = compute_annual_export(consumption, [])
+    assert result["annual_export_kwh"] == 0.0
+    assert result["annual_generation_kwh"] == 0.0
+
+def test_compute_annual_export_clips_at_zero_when_consumption_exceeds_generation():
+    from tier1_lib import compute_annual_export
+    ts = "2024-06-01 12:00"
+    consumption = _make_consumption([(ts, 2.0)])
+    generation  = _make_generation([(ts, 0.5)])
+    result = compute_annual_export(consumption, generation)
+    assert result["annual_export_kwh"] == pytest.approx(0.0)
+
+def test_compute_annual_export_correct_when_generation_exceeds_consumption():
+    from tier1_lib import compute_annual_export
+    ts = "2024-06-01 12:00"
+    consumption = _make_consumption([(ts, 0.5)])
+    generation  = _make_generation([(ts, 2.0)])
+    result = compute_annual_export(consumption, generation)
+    # export per period = 2.0 - 0.5 = 1.5 kWh; 1 day sample → scale × 365
+    assert result["annual_export_kwh"] == pytest.approx(1.5 * 365, rel=0.01)
+    assert result["annual_generation_kwh"] == pytest.approx(2.0 * 365, rel=0.01)
+
+def test_compute_annual_export_scales_to_annual():
+    from tier1_lib import compute_annual_export
+    from datetime import date, timedelta
+    base = date(2024, 6, 1)
+    consumption = _make_consumption(
+        [(f"{base + timedelta(days=i)} 12:00", 0.0) for i in range(30)]
+    )
+    generation = _make_generation(
+        [(f"{base + timedelta(days=i)} 12:00", 1.0) for i in range(30)]
+    )
+    result = compute_annual_export(consumption, generation)
+    assert result["annual_export_kwh"] == pytest.approx(365.0, rel=0.01)
+    assert result["days_in_sample"] == 30
