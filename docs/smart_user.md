@@ -391,3 +391,89 @@ Professional U-value measurement using heat flux plates requires a minimum 72-ho
 **Accuracy and reliability:** The comfort score depends on the accuracy of the indoor temperature sensor placement and the quality of the occupancy signal. A poorly placed sensor (near a radiator or in direct sunlight) will produce systematically optimistic comfort scores. The peer comparison inherits the limitations of the peer dataset: if the consented population skews towards engaged, energy-conscious households, the peer medians will be biased towards higher comfort and lower cost than the general population. The health-risk alert (below 16°C while occupied) is a hard threshold aligned with WHO guidance for sedentary adults; it may not be appropriate for households with highly active occupants or those with different thermal comfort preferences.
 
 **Future work:** Multiple indoor sensors (bedroom, living room, kitchen) would give a spatial comfort map rather than a single-point estimate, which would be particularly valuable for identifying cold rooms in multi-zone properties. Integrating with smart thermostat setpoint data would allow the model to distinguish between under-heating driven by thermostat settings (behavioural) and under-heating driven by an inability to reach the setpoint (fabric or boiler performance issue). Personalised comfort bands (the user can declare their preferred temperature range) would make the score more meaningful for households with atypical preferences.
+
+---
+
+### Air Infiltration Pre-Screening — Indicator for Blower Door Testing
+
+A blower door pressure test (BS EN ISO 9972) measures the air permeability of a building at 50 Pa pressurisation, giving a result in m³/h/m² (q50) or air changes per hour at 50 Pa (n50). It is the definitive method for quantifying air leakage and feeds directly into the SAP air permeability field, replacing the conservative default assumptions used when no test has been done. The test typically costs £300–500 for a residential property.
+
+The same principle applied to Feature 13's U-value pre-screening applies here: a low-cost indicator from existing data can determine whether a blower door test is likely to improve the EPC rating before committing to the expenditure. Two complementary methods are available.
+
+#### Method 1 — Wind-speed regression on τ estimates (no additional hardware)
+
+The whole-building heat loss coefficient has two additive components:
+
+```
+HLC = H_fabric + ρ·cₚ · N(v) · V
+```
+
+Where `H_fabric` is conductive loss through the building fabric (W/K); `ρ·cₚ` is the volumetric heat capacity of air (≈ 0.33 Wh/m³K); `N(v)` is the air change rate in ACH at wind speed v; and `V` is the internal volume in m³. As a first approximation, infiltration increases linearly with wind speed:
+
+```
+N(v) = N₀ + k·v
+```
+
+Where `N₀` is the still-air infiltration rate and `k` is the wind sensitivity coefficient (ACH per m/s). Since `1/τ = HLC/C`, this gives:
+
+```
+1/τ = (H_fabric + ρ·cₚ·(N₀ + k·v)·V) / C
+```
+
+This is linear in wind speed. Feature 13 already produces a (τ, wind speed) pair for every overnight free-cooling event. Regressing `1/τ` against wind speed `v` gives:
+
+- **Slope** — proportional to the wind-driven infiltration sensitivity coefficient `k`
+- **Intercept** — proportional to the still-air HLC, from which N₀ can be extracted given V and an assumed H_fabric
+
+The wind correlation coefficient alone is a reliable qualitative indicator regardless of absolute calibration: a strong positive correlation (r > 0.5 between 1/τ and wind speed) identifies infiltration as the dominant gap driver and directs the homeowner toward a blower door test rather than a U-value survey. A weak correlation with a persistent gap indicates a fabric problem instead.
+
+**Limitation:** H_fabric must be assumed from construction data, introducing the same ±20% systematic uncertainty as the τ method itself. The absolute N₀ estimate should be treated as indicative. A minimum of 20 overnight decay events across a range of wind conditions is needed for a statistically meaningful regression.
+
+#### Method 2 — CO₂ tracer gas decay (requires the Tier 3 CO₂ sensor)
+
+When occupants are present, exhaled CO₂ raises indoor concentration above the outdoor ambient of approximately 420 ppm. When the property becomes vacant (confirmed by the occupancy signal), CO₂ decays back toward ambient driven by air infiltration and mechanical ventilation:
+
+```
+C(t) = C_outdoor + (C₀ − C_outdoor) · exp(−N · t)
+```
+
+Where `C(t)` is indoor CO₂ at time t, `C₀` is the concentration at vacancy onset, and `N` is the air change rate in ACH. Log-linearising and applying OLS regression to the post-vacancy readings gives N directly — the same mathematical structure as the τ decay fit in Feature 13. This runs automatically and passively every time the property becomes vacant after a period of occupancy, producing repeated measurements that can be averaged to reduce uncertainty.
+
+The result is the **natural-condition ACH**. To compare with a blower door result, the Sherman conversion factor is applied:
+
+```
+n₅₀ ≈ N_natural × f
+```
+
+Where `f` ≈ 20 for a typical two-storey UK house (range: 15 for sheltered single-storey to 25 for exposed multi-storey). This conversion carries ±30–40% uncertainty and is a screening estimate only.
+
+**Practical constraints:** CO₂ must be elevated above approximately 600 ppm at vacancy onset, requiring at least 1–2 hours of prior occupancy. The method assumes well-mixed air — open-plan layouts give the most reliable result; heavily compartmentalised properties with closed doors give a partial-zone estimate. The decay window is typically 2–4 hours; shorter for draughty properties.
+
+#### Decision framework
+
+SAP default natural infiltration assumptions by age band:
+
+| Age band | SAP default natural ACH |
+|---|---|
+| Pre-1945 | 0.7 – 1.0 |
+| 1945 – 1980 | 0.5 – 0.7 |
+| Post-1980 | 0.3 – 0.5 |
+| Post-2006 (Part L) | 0.15 – 0.3 |
+
+| Measured ACH vs SAP default | Recommended action |
+|---|---|
+| Within 15% of default | Within noise — no action |
+| 15–35% below default | Check mechanical ventilation entries in the EPC first; an assessor visit may resolve without testing |
+| > 35% below default, seen across 5+ measurements | Blower door test is likely to improve SAP rating; calculate band uplift value before commissioning |
+| Above default | Property is leakier than SAP assumes; blower door would reduce the rating — no benefit unless air-tightness works are planned |
+
+#### Directing spend: infiltration vs fabric
+
+The two pre-screening methods address distinct components of HLC and should be interpreted together before committing to either test:
+
+- **Weak wind correlation + CO₂ ACH consistent with SAP default** → gap is fabric-driven → pursue U-value measurement (£200)
+- **Strong wind correlation + CO₂ ACH well below SAP default** → gap is infiltration-driven → pursue blower door test (£300–500)
+- **Strong wind correlation + CO₂ ACH consistent with SAP default** → wind-driven stack infiltration is significant but baseline is as expected → consider draught-proofing assessment before a full blower door test
+- **Weak wind correlation + CO₂ ACH well below SAP default** → property is tight but fabric underperforms; both measurements may be warranted, or the τ uncertainty is masking a fabric improvement
+
+**Future work:** Automating the decision tree within the app — combining the wind-correlation coefficient, the CO₂-derived ACH, and the performance gap magnitude — would produce a single recommendation with a confidence rating and an estimated EPC band uplift for each test option. Calibrating the Sherman factor `f` per property using geometry data from the EPC register (floor area, storeys, exposed perimeter) would reduce the n50 conversion uncertainty from ±40% to approximately ±20%. Integrating with the Gas Safe and CORGI databases would allow the app to recommend certified blower door testers in the household's postcode.
