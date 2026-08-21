@@ -633,3 +633,98 @@ Prices in this segment change frequently. Verify current availability on Amazon 
 | Thermal IR camera | £250–350 one-off | Fabric and infiltration diagnosis | High diagnostic value, used periodically |
 
 The highest-value additions for a property with gas heating and no solar are the CT clamp, flow/return temperature probes, and a hot water cylinder sensor — collectively under £250 — which together enable measured boiler efficiency, direct appliance identification, and DHW isolation. For a heat pump property, the heat meter replaces the flow/return probes as the priority, giving a directly measured seasonal COP that validates or challenges the installer's performance claims.
+
+---
+
+## Enhanced EPC Assessment — Value-Added Activities On Site
+
+A standard RdSAP domestic EPC assessment takes 45–90 minutes and uses almost no instruments. It is primarily a visual inspection and room measurement exercise that feeds into a software model relying heavily on age-band default values for U-values, air permeability, and boiler efficiency. Most of the uncertainty in the resulting certificate comes from those defaults. An assessor carrying a modest sensor kit can substantially improve accuracy, reduce the reliance on defaults, and offer a tiered range of chargeable additional services.
+
+### What the Standard Visit Covers
+
+- Floor area and ceiling height measurement
+- Visual identification of wall, roof, and floor construction type and age
+- Heating system, controls, and fuel type
+- Glazing type and estimated area
+- Visible evidence of insulation (loft hatch inspection, CWI certificate)
+- Lighting type
+- Entry into RdSAP software, which applies default U-values and infiltration rates for the age band
+
+Everything that cannot be seen — actual U-values, air permeability, boiler combustion efficiency, moisture content, thermal bridging — uses a published default. For older properties these defaults are almost always pessimistic; for poorly constructed newer ones they can be optimistic.
+
+---
+
+### No Additional Equipment Beyond a Smartphone
+
+**Solar PV suitability screening**
+Roof orientation and pitch can be measured with a phone compass and clinometer app. Combined with satellite imagery for shading and roof area derived from the floor plan, this produces an indicative generation estimate and payback period in five minutes. A natural upsell conversation for any property without existing solar.
+
+**Smart meter connectivity check**
+Many SMETS1 meters lost data connectivity after a supplier switch and have never been re-enrolled. The assessor can check IHD function, confirm meter type, and flag whether half-hourly data sharing is enabled — the prerequisite for all the smart meter analytics in this system. Identifying this at the point of EPC assessment creates an immediate referral pathway to data-driven monitoring services.
+
+**EV charger and battery storage readiness**
+Visual check: driveway or garage present; distance to consumer unit; existing 32A circuit; external wall space for a battery unit. Two minutes on site produces a readiness score directly relevant to the household's electrification pathway.
+
+**Radiator sizing assessment**
+Measuring radiator dimensions (height × length × type) allows heat output at various flow temperatures to be calculated. This is the key input for heat pump feasibility — whether existing radiators can deliver sufficient output at 45–50°C flow rather than the 70–80°C required by a conventional boiler. This is rarely done during a standard EPC visit, yet it is the most common single cause of heat pump installation underperformance.
+
+---
+
+### Simple Handheld Instruments (Under £100 Total)
+
+**Loft insulation depth probe — £5–10**
+The standard approach is to look through the loft hatch and estimate. A probe takes a precise reading in seconds. The difference between recording 150mm and 300mm can be one EPC band in some property archetypes. Under-recording insulation depth is one of the most common sources of EPC underscoring.
+
+**Pin moisture meter — £20–50**
+Measures moisture content in walls, floors, and window reveals. Cavity wall insulation is contraindicated in walls with moisture above approximately 20%. An assessor who identifies elevated moisture before recommending CWI prevents a costly installation failure and protects both the homeowner and the ECO4 scheme from a defective measure. Also identifies condensation-related moisture at cold bridges, which correlates directly with thermal image findings.
+
+**CO₂, temperature, and humidity meter — £60–100**
+Taking indoor air quality readings at the time of visit produces a snapshot that is immediately useful and establishes a baseline for comparison with the continuous monitoring this system provides. A CO₂ reading above 1,500 ppm in a bedroom with the door closed indicates a ventilation failure the RdSAP assessment will not flag. Humidity above 70% in a cold room is an active mould risk. Neither is currently recorded in a standard EPC.
+
+**Carbon monoxide detector or analyser — £30–80**
+A CO reading near gas appliances takes thirty seconds. At sub-acute poisoning levels (50–100 ppm) many occupants attribute symptoms to illness rather than a faulty appliance. The EPC visit is one of the few professional touchpoints at which a property receives any kind of inspection — flagging a CO risk has significant safety value and no commercial downside.
+
+---
+
+### Moderate Investment Instruments (£150–500)
+
+**Thermal infrared camera — £150–350**
+The highest-value instrument for an EPC assessor to carry. In a single walk around the property exterior on a cold morning after the heating has run overnight, the camera reveals: missing or failed cavity wall insulation sections (visible as warm patches on the external leaf); air leakage paths around window frames, loft hatches, and electrical sockets; thermal bridging at lintels, floor junctions, and corners; and glazing failures (broken sealed unit showing as a cold patch). Internally it identifies cold rooms, uninsulated pipes, and areas where insulation is absent above suspended ceilings.
+
+This supports the EPC in three ways: (1) confirms or challenges the age-band default U-value assumptions; (2) identifies the specific locations where insulation is absent or failed, enabling targeted rather than whole-element recommendations; (3) produces photographic evidence that supports grant applications and helps the homeowner understand what the EPC score means in physical terms. See the previous section for recommended models — the InfiRay P2 Pro at approximately £150–180 is the most cost-effective option for this use case.
+
+The requirement for a minimum 10°C indoor-outdoor differential means this works best between October and March. Assessors working in this period should carry one routinely.
+
+**Flue gas analyser — £200–500**
+Measures O₂, CO, CO₂, and flue gas temperature at the boiler flue outlet. From these the combustion efficiency is calculated directly — the actual efficiency of the boiler on the day of the visit, not the manufacturer's rated figure or the SAP default. A boiler running at 78% combustion efficiency rather than the 89% SAP assumes is losing approximately £120/year in wasted gas at current prices for an average household.
+
+The flue gas result also indicates whether the boiler is condensing: a flue temperature below approximately 55°C confirms condensing operation; above 65°C suggests the return temperature is too high for condensing mode, often because the system is poorly balanced or the flow temperature is set too high for the installed radiators. This is directly actionable information for the homeowner and a natural referral to a heating engineer.
+
+**Cavity wall inspection camera (endoscope) — £50–150**
+A small flexible camera inserted through a 12mm drill hole at high level in the external wall confirms whether cavity wall insulation is present and its current condition — settled, absent in sections, or saturated. This resolves the ambiguity that a thermal image creates (missing insulation or structural element?) and provides unambiguous evidence for or against a CWI recommendation. A drill, the camera, and a matching filler plug is a complete kit.
+
+---
+
+### Structured Additional Services — Commercial Packaging
+
+The activities above bundle naturally into tiered offerings beyond the basic EPC:
+
+**Enhanced EPC — £50–80 additional**
+Standard RdSAP plus thermal imaging walkround, loft depth probe, moisture meter check, and CO₂/humidity snapshot. Produces a report with photographic evidence of the specific elements driving the EPC score and the improvement recommendations. Directly feeds the pre-screening framework for U-value measurement and blower door decisions described in this guide.
+
+**Heating system health check — £40–60 additional**
+Flue gas analysis, radiator sizing calculation, system pressure check, and flow temperature verification. Produces a boiler efficiency reading, a COP projection for heat pump replacement at current radiator sizes, and an indicative heat pump feasibility verdict. Natural referral to an MCS installer.
+
+**Indoor environment report — £30–50 additional**
+CO₂, humidity, temperature, and CO readings at multiple points in the property, with a plain-English interpretation. Flags ventilation failures, condensation risk zones, and any CO concern. Stands alone as a health and comfort report and is particularly valuable for landlords ahead of the anticipated minimum EPC C requirement for the private rented sector.
+
+**Retrofit readiness pack — £80–120 additional**
+Combines enhanced EPC, cavity wall endoscope inspection, moisture mapping, and solar PV and EV charger suitability assessment. Produces a prioritised list of improvement measures with indicative costs, savings, and payback periods — a light-touch retrofit assessment bridging the gap between an EPC and a full PAS 2035 assessment.
+
+---
+
+### Connection to This System
+
+The EPC visit is the natural point at which to enrol the property in continuous smart meter monitoring. The assessor can confirm smart meter type and connectivity, enable half-hourly data sharing, install the indoor temperature sensor (a five-minute task), and explain what the system will do over the following months.
+
+The EPC score becomes the baseline; the system then tracks whether actual performance matches the certificate and flags when professional investigation is warranted. This creates a recurring relationship between the assessor and the property rather than a one-off transaction — the assessor becomes the natural referral point when the system recommends a U-value measurement, a blower door test, a boiler service, or a heat pump feasibility assessment. The smart meter analytics effectively extend the assessor's professional reach into the property between visits, creating a continuous monitoring and referral service built on top of the initial EPC.
