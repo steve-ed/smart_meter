@@ -588,11 +588,31 @@ The features described in this document are built from smart meter data, a free 
 
 ### Thermal Infrared Camera (Periodic Diagnostic)
 
-**Examples:** FLIR One Pro smartphone attachment — £250–350; professional thermal survey — £200–400.
-
 Not a continuous sensor, but included because it directly complements the τ and infiltration pre-screening outputs. Where Feature 13 quantifies *how much* heat is being lost and the infiltration methods estimate *how much* air is leaking, a thermal image taken on a cold night with the heating on shows *where* both are occurring — missing insulation visible as warm patches on an external wall, air leakage paths as cold streaks around window frames and socket boxes, thermal bridging at structural elements.
 
 **Use case in this system:** Once the performance gap pre-screening identifies a significant gap, a thermal image taken before commissioning a U-value survey or blower door test can direct the investigation to the specific element responsible, potentially saving the cost of a full blower door test if the image clearly shows a single large air leakage path that can be sealed cheaply. The conditions required for a useful thermal image (minimum 10°C indoor-outdoor differential, heating running for at least 2 hours, clear dry night) are identical to those that produce the best τ decay events — the two diagnostic methods are naturally complementary in timing.
+
+#### Thermal Camera — Current Market Options
+
+**Budget (£150–300) — smartphone attachments**
+
+**InfiRay P2 Pro** — approximately £150–180, USB-C. 256×192 native thermal resolution, which is higher than the FLIR One Pro at a lower price. The most cost-effective option for building diagnostics where resolution matters more than brand recognition. Recommended for this system's use case.
+
+**FLIR One Pro** — approximately £200–230, USB-C or Lightning. 160×120 native thermal resolution with MSX edge enhancement, which overlays the visible camera image onto the thermal to make cold spots and air leakage paths significantly easier to interpret. Widely recognised by assessors, surveyors, and insurers — relevant if the image output will form part of a formal evidence package (mortgage application, ECO4 compliance, insurance claim).
+
+**Seek Thermal CompactPro** — approximately £180–220. Similar resolution to the FLIR One Pro with slightly better raw thermal sensitivity, but FLIR's MSX image blending is generally more useful for building surveys than Seek's raw output.
+
+**Mid-range (£300–600) — standalone handheld**
+
+**Hti-Xintai HT-A2 and similar Xinfrared/Hti units** — £250–400. Standalone devices requiring no phone, 256×192 resolution. Lower build quality than FLIR but often using the same Lepton thermal core. Practical for repeated periodic surveys without dependence on a specific smartphone model.
+
+**FLIR C5** — approximately £500. The entry point to FLIR's standalone range. Wi-Fi enabled, 160×120 with MSX, touchscreen display. The brand carries weight in formal reporting contexts.
+
+**Recommendation for this system**
+
+For the diagnostic application described in this guide — identifying cold spots, air leakage paths, and missing insulation on a domestic property to support the Feature 13 pre-screening decision — the **InfiRay P2 Pro** at approximately £150–180 offers the best resolution per pound. The 10°C indoor-outdoor differential requirement for a useful building image is comfortably met on a winter night, and at those conditions the sensitivity difference between the P2 Pro and more expensive units is negligible. If the output is likely to be reviewed by a third party in a formal context, step up to the **FLIR One Pro** for the brand recognition alone.
+
+Prices in this segment change frequently. Verify current availability on Amazon UK and the InfiRay/Xinfrared direct sites before purchasing.
 
 ---
 
