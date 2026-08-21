@@ -477,3 +477,139 @@ The two pre-screening methods address distinct components of HLC and should be i
 - **Weak wind correlation + CO₂ ACH well below SAP default** → property is tight but fabric underperforms; both measurements may be warranted, or the τ uncertainty is masking a fabric improvement
 
 **Future work:** Automating the decision tree within the app — combining the wind-correlation coefficient, the CO₂-derived ACH, and the performance gap magnitude — would produce a single recommendation with a confidence rating and an estimated EPC band uplift for each test option. Calibrating the Sherman factor `f` per property using geometry data from the EPC register (floor area, storeys, exposed perimeter) would reduce the n50 conversion uncertainty from ±40% to approximately ±20%. Integrating with the Gas Safe and CORGI databases would allow the app to recommend certified blower door testers in the household's postcode.
+
+---
+
+## Additional Sensors — Value and Feasibility
+
+The features described in this document are built from smart meter data, a free weather API, an occupancy signal, and a single indoor temperature sensor. A number of additional low-cost sensors would materially improve the accuracy of existing features or unlock new ones. The following describes each sensor, what it adds, and where it sits in a cost-versus-impact assessment.
+
+---
+
+### CT Clamp / Whole-Home Electricity Monitor
+
+**Examples:** Efergy Engage, Sense, Emporia Vue, Shelly EM — £50–150, clipped onto the consumer unit tails by a competent person.
+
+**What it adds:** Real power measurement at sub-minute or second-level resolution, replacing the half-hourly smart meter as the primary electricity signal. This transforms Feature 3 (appliance disaggregation) from an indicative pattern-matching exercise into genuine non-intrusive load monitoring (NILM). At 1-second resolution, individual appliances have distinctive load signatures — motor start transients, switching noise, steady-state draw — that allow confident identification and separation even when multiple loads run simultaneously. Washing machines, dishwashers, and short-cycle appliances (kettle, microwave) that are invisible at 30-minute resolution become clearly detectable.
+
+**Impact on existing features:** Feature 3 accuracy improves from approximately 80% on EV and immersion heater detection to over 90% across all target appliances. Feature 8 (carbon-aware scheduling) benefits from precise per-appliance energy quantification rather than event-duration estimates. Feature 12 (phantom load) can resolve individual standby draws rather than a household aggregate.
+
+**Accuracy note:** Some whole-home monitors use machine learning trained on appliance databases rather than physics-based signatures, which makes them accurate for common appliances but unreliable for unusual or older equipment. Physics-based approaches using current waveform analysis are more generalisable across the housing stock.
+
+---
+
+### Heat Meter on the Heating Circuit
+
+**Examples:** Sontex 531, Kamstrup Multical — £150–400 including flow sensor and temperature probes, plumber-installed.
+
+**What it adds:** Direct measurement of thermal energy delivered by the heating system in kWh. This is the measurement that actually determines system efficiency — gas consumed divided by heat delivered gives true system efficiency, whereas Feature 5 currently infers efficiency from the gas/HDD relationship and cannot separate boiler efficiency from building heat loss. For heat pumps, thermal output divided by electrical input gives measured COP rather than the modelled estimate used in Feature 4.
+
+**Impact on existing features:** Feature 4 (heat pump suitability) moves from a modelled COP with ±30% uncertainty to a directly measured seasonal COP. Feature 5 (boiler efficiency trending) can detect efficiency loss directly rather than via the HDD-normalised proxy, reducing false positives from occupancy and setpoint changes. Heat meter data also enables direct verification of whether a heat pump is hitting its MCS-rated performance — relevant to warranty claims and ECO4 compliance.
+
+**Note:** A heat meter on a gas boiler system measures the thermal output of the heat emitter circuit, not the boiler's combustion efficiency directly. For condensing boilers this is a closer proxy than the gas/HDD method because it eliminates the HDD regression uncertainty. For heat pumps it is the definitive measurement.
+
+---
+
+### Flow and Return Temperature Probes
+
+**Examples:** Clip-on pipe thermistors, DS18B20 probes — £20–50 for a pair, no plumbing required.
+
+**What it adds:** Direct measurement of heating circuit flow and return temperatures. The delta-T (flow minus return) indicates how well the heat is being extracted by the emitters — a small delta-T suggests the radiators or underfloor circuit is not absorbing heat efficiently due to sludge, airlocks, or an oversized pump. Flow temperature is the single most uncertain input in the heat pump COP model — Feature 4 currently assumes either 45°C or 55°C, whereas the actual value may differ significantly from either assumption depending on the system design and weather compensation settings.
+
+**Impact on existing features:** Feature 4 COP uncertainty drops from ±30% to approximately ±10% when flow temperature is measured directly. Feature 5 gains a second degradation indicator: a rising return temperature at constant outdoor conditions indicates heat exchanger fouling. These sensors connect to the same gateway as the Tier 4 indoor temperature sensor, requiring no additional hub.
+
+---
+
+### Hot Water Cylinder Temperature Sensor
+
+**Examples:** Clip-on probe or immersion pocket sensor — £10–30.
+
+**What it adds:** Direct measurement of cylinder temperature, typically at the mid-point and top of the tank. This enables: (1) confirmation that the cylinder reaches 60°C for legionella pasteurisation at least weekly; (2) measurement of cylinder standing heat loss — the cylinder is a known-volume thermal store, so its overnight cooling rate gives a heat loss coefficient directly; (3) identification of whether the immersion heater is doing useful work or duplicating heat already provided by the boiler or heat pump.
+
+**Impact on existing features:** Feature 10 (micro-leak detection) currently flags sustained overnight gas as a possible cylinder heat loss but cannot confirm it. A cylinder sensor resolves this — if overnight gas correlates with the cylinder cooling below setpoint and reheating, the cause is cylinder heat loss rather than a gas leak. Feature 3 (appliance disaggregation) gains a direct confirmation signal for immersion heater detection. For solar thermal systems the cylinder sensor is the primary measure of solar yield.
+
+---
+
+### Multiple Indoor Temperature Sensors
+
+**Examples:** Same specification as the Tier 4 sensor — £15–30 each, placed in bedrooms, hallway, and the coldest room.
+
+**What it adds:** Spatial temperature distribution across the property. A single living room sensor gives a whole-house comfort score that conceals cold bedrooms or poorly performing extensions. Multiple sensors enable per-room comfort scoring, identification of rooms where the heating system is not balancing correctly, and detection of local insulation failures — a room decaying significantly faster than others during a free cooling event is indicative of missing or failed cavity wall insulation in a specific wall section, or air leakage around a window reveal. This directs a fabric investigation to a specific location rather than triggering a whole-building survey.
+
+**Impact on existing features:** Feature 13 (τ measurement) can be run per-room to produce a spatial map of heat retention quality. Feature 14 comfort reporting becomes zone-level. A three-sensor deployment at £45–90 total provides substantially more diagnostic value than a single sensor for the insulation pre-screening use cases.
+
+---
+
+### Humidity Sensors
+
+**Examples:** Combined temperature/humidity sensors (SHT30, DHT22) — available integrated with most modern indoor temperature sensors at marginal additional cost of £0–10.
+
+**What it adds:** Indoor relative humidity (RH). In the context of building energy performance, humidity matters for three reasons: (1) high RH combined with cold surfaces creates condensation and mould risk — a common and serious consequence of retrofit insulation that shifts the dew point to the internal face of the original wall; (2) RH correction improves the accuracy of the comfort score, since apparent temperature is a function of both temperature and humidity; (3) moisture content in building fabric affects thermal conductivity — wet insulation performs significantly worse than its dry rated U-value.
+
+**Impact on existing features:** Feature 14 comfort scoring becomes more accurate. A new alert category becomes possible: RH exceeding 70% in a cold room is a leading indicator of mould formation, typically preceding visible damage by several weeks. Post-retrofit monitoring of RH is particularly important after solid wall insulation installation, where interstitial condensation in the insulation layer is a known failure mode that thermal sensors alone cannot detect.
+
+---
+
+### Solar Inverter API
+
+**Examples:** SolarEdge, SMA, Fronius, Growatt, Solis — all expose local or cloud APIs, free if the inverter has Wi-Fi.
+
+**What it adds:** Direct half-hourly solar generation data rather than inferring generation from net import/export figures. The smart meter export reading confounds solar generation with battery discharge and demand reduction — it is a net figure, not a gross one. Direct inverter data separates these cleanly, enabling accurate battery sizing modelling (Feature 2) and a direct solar self-consumption calculation. Inverter data also enables panel degradation detection — a gradual fall in output per unit of irradiance over months indicates soiling, shading, or cell degradation.
+
+**Impact on existing features:** Feature 2 battery dispatch simulation becomes significantly more accurate for solar households. Self-consumption rate can be calculated and used to optimise battery charge/discharge strategy. No hardware cost if the inverter already has Wi-Fi connectivity.
+
+---
+
+### EV State of Charge via Vehicle API
+
+**Examples:** Tesla API, Nissan Leaf, Volkswagen We Connect, Ohme or Hypervolt charger API — free.
+
+**What it adds:** Actual battery state of charge and departure time, replacing the estimated energy requirement used in Feature 8. Currently the EV scheduling algorithm estimates required charge from historical session durations, which may overestimate on days where the car is already partially charged. Direct SoC data enables precise scheduling — charge exactly the required kWh, no more — and confirmation of session completion. The algorithm can also incorporate range anxiety thresholds (always charge to at least 30% regardless of schedule) and trip planning overrides.
+
+---
+
+### Smart Radiator Valves (TRVs)
+
+**Examples:** Tado, Drayton Wiser, Honeywell Evohome — £30–50 per valve.
+
+**What it adds:** Per-room temperature setpoint control combined with per-room temperature measurement. In the context of this system, the primary value is multi-zone temperature data (equivalent to multiple indoor sensors) plus direct evidence of whether individual radiators are functioning — a radiator that fails to reach the room setpoint despite the boiler running indicates sludge, airlock, or incorrect balancing. Occupancy-linked setback (lowering setpoint in vacant rooms from the Tier 3 occupancy signal) becomes possible with per-room control, and boiler start time optimisation (Feature 9) can be refined by room-level temperature response.
+
+---
+
+### Local Weather Station
+
+**Examples:** Davis Vantage Vue, Ecowitt GW1100 — £50–150.
+
+**What it adds:** Property-specific microclimate data — temperature, wind speed, and rainfall — rather than the gridded weather API reanalysis. Properties in frost pockets, urban heat islands, coastal locations, or on exposed hillsides can differ from the nearest API grid point by 1–3°C on extreme nights. For the air infiltration pre-screening (Method 1), local wind speed at the building face is more relevant than the 10m station wind from Open-Meteo, particularly for properties in sheltered valleys or dense urban areas where surroundings strongly modify the local wind environment.
+
+**Cost-effectiveness:** Marginal improvement over the weather API for most properties. Most valuable for locations known to diverge significantly from regional averages, and for the wind-speed regression used in infiltration screening.
+
+---
+
+### Thermal Infrared Camera (Periodic Diagnostic)
+
+**Examples:** FLIR One Pro smartphone attachment — £250–350; professional thermal survey — £200–400.
+
+Not a continuous sensor, but included because it directly complements the τ and infiltration pre-screening outputs. Where Feature 13 quantifies *how much* heat is being lost and the infiltration methods estimate *how much* air is leaking, a thermal image taken on a cold night with the heating on shows *where* both are occurring — missing insulation visible as warm patches on an external wall, air leakage paths as cold streaks around window frames and socket boxes, thermal bridging at structural elements.
+
+**Use case in this system:** Once the performance gap pre-screening identifies a significant gap, a thermal image taken before commissioning a U-value survey or blower door test can direct the investigation to the specific element responsible, potentially saving the cost of a full blower door test if the image clearly shows a single large air leakage path that can be sealed cheaply. The conditions required for a useful thermal image (minimum 10°C indoor-outdoor differential, heating running for at least 2 hours, clear dry night) are identical to those that produce the best τ decay events — the two diagnostic methods are naturally complementary in timing.
+
+---
+
+### Summary — Sensor Value vs Cost
+
+| Sensor | Approx cost | Primary features improved | Impact |
+|---|---|---|---|
+| CT clamp whole-home monitor | £50–150 | Feature 3, 8, 12 | High — transforms disaggregation accuracy |
+| Heat meter | £150–400 | Feature 4, 5 | High — enables measured COP |
+| Flow/return temperature probes | £20–50 | Feature 4, 5 | High — eliminates largest COP model uncertainty |
+| Hot water cylinder sensor | £10–30 | Feature 3, 10 | Medium — resolves DHW vs space heating ambiguity |
+| Additional indoor temp sensors | £15–30 each | Feature 13, 14 | Medium — enables spatial fabric diagnosis |
+| Humidity sensors | £0–10 marginal | Feature 14, mould alert | Medium — building health monitoring |
+| Solar inverter API | Free | Feature 2, 8 | Medium for solar households |
+| EV SoC API | Free | Feature 8 | Medium for EV households |
+| Smart TRVs | £30–50 per valve | Feature 9, 13, 14 | Medium — multi-zone control and measurement |
+| Local weather station | £50–150 | Feature 6, 9, infiltration screening | Low-medium — marginal over API for most locations |
+| Thermal IR camera | £250–350 one-off | Fabric and infiltration diagnosis | High diagnostic value, used periodically |
+
+The highest-value additions for a property with gas heating and no solar are the CT clamp, flow/return temperature probes, and a hot water cylinder sensor — collectively under £250 — which together enable measured boiler efficiency, direct appliance identification, and DHW isolation. For a heat pump property, the heat meter replaces the flow/return probes as the priority, giving a directly measured seasonal COP that validates or challenges the installer's performance claims.
