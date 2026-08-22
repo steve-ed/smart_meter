@@ -794,9 +794,15 @@ The seller's situation is the reverse of the landlord's. Where a landlord faces 
 
 ### Green Mortgage Eligibility — Feature 13d
 
-The most commercially significant angle. Feature 13d generates a structured evidence package of measured fabric performance. If the property qualifies for a green mortgage (typically EPC B or above, or demonstrably strong measured performance), a buyer can access a preferential rate — typically 0.1–0.2% below standard. On a £300,000 mortgage over 25 years, that difference is worth £5,000–10,000 to the buyer.
+A green mortgage is a standard residential mortgage with a preferential interest rate offered by a lender to buyers or owners of energy-efficient properties. The lender's rationale is that energy-efficient homes have lower running costs, meaning the borrower has more disposable income and is statistically a lower default risk. Most UK lenders use the EPC band as the primary gate — typically EPC A or B, though some accept EPC C with additional evidence. A minority will accept measured performance evidence in place of or alongside the EPC band.
 
-A seller who can hand a buyer pre-assembled green mortgage evidence — measured heat loss, living EPC band, retrofit verification — removes a significant friction from the buyer's decision and differentiates the property from comparable listings where the buyer would have to commission this themselves post-sale.
+The rate discount is typically **0.1–0.2% below the lender's standard equivalent product**. On a £300,000 repayment mortgage over 25 years, that difference is worth £5,000–10,000 over the term.
+
+Feature 13d generates a structured evidence package of measured fabric performance suitable for green mortgage applications. A seller who can hand a buyer pre-assembled green mortgage evidence — measured heat loss, living EPC band, retrofit verification — removes a significant friction from the buyer's decision and differentiates the property from comparable listings where the buyer would have to commission this themselves post-sale.
+
+**The EPC problem:** EPCs are unreliable for older properties because they rely on age-band default U-values rather than measurement. A solid-walled Victorian terrace is almost always rated D or E regardless of how well it actually retains heat, because the SAP model assumes a U-value of approximately 1.7 W/m²K for solid brick when the actual value is often 1.2–1.4 W/m²K. A large proportion of the housing stock is therefore locked out of green mortgage rates by a modelling assumption rather than by actual performance — exactly the gap that Feature 13a (performance gap) and Feature 13d (evidence package) are designed to address. If a property's measured heat loss demonstrates fabric performance equivalent to EPC C or B, the Feature 13d evidence package provides a structured, underwriter-readable summary of what was measured, how, and at what confidence level — creating a route to green mortgage qualification on a property that would be rejected on its certificate alone.
+
+Current UK lenders offering green mortgage products include Barclays, NatWest, Halifax, Nationwide, Lloyds, Virgin Money, and several building societies. Specific criteria and whether they accept measured evidence in addition to EPC band vary by product and change frequently — MoneyHelper and MoneySavingExpert maintain current comparisons. The direction of travel, driven by FCA sustainability reporting requirements and lender ESG targets, is toward performance-based qualification rather than certificate-based qualification.
 
 ---
 
@@ -902,11 +908,11 @@ Every significant discrepancy between what the EPC assumes and what measurement 
 
 ### Green Mortgage Eligibility
 
-If the property qualifies for a green mortgage — typically requiring EPC B or above, or measured performance evidence meeting the lender's criteria — the buyer can access a preferential interest rate of approximately 0.1–0.2% below standard. On a £300,000 mortgage over 25 years this is worth £5,000–10,000 over the mortgage term.
+A green mortgage is a standard residential mortgage with a preferential interest rate offered to buyers of energy-efficient properties. Most UK lenders use the EPC band as the primary gate — typically EPC A or B, though some accept EPC C with additional evidence — on the basis that energy-efficient homes have lower running costs and statistically lower default risk. The rate discount is typically 0.1–0.2% below the lender's standard equivalent product, worth £5,000–10,000 over 25 years on a £300,000 mortgage.
 
 Feature 13d generates a structured evidence package of measured fabric performance suitable for green mortgage applications. Where the seller has already produced this, the buyer should verify it with an independent assessment before relying on it in a mortgage application. Where the seller has not produced it, the buyer can commission it — potentially qualifying for a rate the seller was unaware was available.
 
-If the living EPC band (Feature 13b) is demonstrably higher than the lodged certificate, the buyer may be able to qualify for a green mortgage on a property that would not qualify on its certificate alone — without waiting for a formal reassessment.
+A key opportunity arises for properties with a lower EPC band than their actual performance warrants. Older solid-walled properties are frequently rated D or E because SAP applies a default U-value of approximately 1.7 W/m²K for solid brick, when measured values are often 1.2–1.4 W/m²K. If Feature 13a shows the property's measured fabric performance is at C/B boundary despite a D certificate, the Feature 13d evidence package provides an underwriter-readable route to green mortgage qualification without waiting for a formal reassessment. Current lenders offering green products include Barclays, NatWest, Halifax, Nationwide, Lloyds, and Virgin Money — criteria vary by product and the direction of travel is toward performance-based rather than certificate-based qualification.
 
 ---
 
