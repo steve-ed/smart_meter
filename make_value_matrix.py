@@ -173,7 +173,7 @@ for col_i, actor in enumerate(actors):
 
 # Title
 fig.text(0.01, 0.995,
-         "Smart Meter Analytics — Value-Added Features by Actor",
+         "Smart Meter Analytics",
          ha="left", va="top", fontsize=FS_TITLE, fontweight="bold",
          transform=fig.transFigure)
 
