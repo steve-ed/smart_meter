@@ -86,7 +86,7 @@ dot_col   = {"EPC & Compliance": "#1a6fa8", "Financial": "#2a7a2a",
 FS_TITLE  = 40
 FS_HDR    = 34
 FS_FEAT   = 31
-FS_ACTOR  = 22
+FS_ACTOR  = 31
 DOT_MS    = 28
 
 # Build row list
@@ -99,7 +99,7 @@ for group, feats in feature_groups.items():
 n_rows   = len(rows)
 n_actors = len(actors)
 
-col_w = 1.15   # column width — wide enough for actor labels
+col_w = 1.7    # column width — wide enough for larger actor labels at steeper angle
 row_h = 1.4    # row height — increased for larger feature font
 lpad  = 6.5    # left label area
 rpad  = 0.4    # right padding
@@ -168,7 +168,7 @@ for col_i, actor in enumerate(actors):
     fig.text(x_fig, ax_top + 0.006, actor,
              ha="left", va="bottom",
              fontsize=FS_ACTOR, fontweight="bold",
-             rotation=40, rotation_mode="anchor",
+             rotation=70, rotation_mode="anchor",
              transform=fig.transFigure)
 
 # Title
