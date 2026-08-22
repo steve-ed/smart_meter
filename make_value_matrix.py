@@ -72,17 +72,24 @@ connectivity = {
     "Per-room temperature sensors":           [0, 1, 0, 0, 0, 0, 0, 0, 1, 0],
 }
 
-group_bg   = {"EPC & Compliance": "#daeef9", "Financial": "#d6f0d6",
-              "Risk & Safety": "#fde8cc",    "Fabric & Diagnosis": "#ead5f5",
-              "Electrification": "#fdf5cc"}
-group_hdr  = {"EPC & Compliance": "#1a6fa8", "Financial": "#2a7a2a",
-              "Risk & Safety": "#b85c00",    "Fabric & Diagnosis": "#6a1f8e",
-              "Electrification": "#8a6e00"}
-dot_colour = {"EPC & Compliance": "#1a6fa8", "Financial": "#2a7a2a",
-              "Risk & Safety": "#b85c00",    "Fabric & Diagnosis": "#6a1f8e",
-              "Electrification": "#8a6e00"}
+group_bg  = {"EPC & Compliance": "#daeef9", "Financial": "#d6f0d6",
+             "Risk & Safety": "#fde8cc",    "Fabric & Diagnosis": "#ead5f5",
+             "Electrification": "#fdf5cc"}
+group_hdr = {"EPC & Compliance": "#1a6fa8", "Financial": "#2a7a2a",
+             "Risk & Safety": "#b85c00",    "Fabric & Diagnosis": "#6a1f8e",
+             "Electrification": "#8a6e00"}
+dot_col   = {"EPC & Compliance": "#1a6fa8", "Financial": "#2a7a2a",
+             "Risk & Safety": "#b85c00",    "Fabric & Diagnosis": "#6a1f8e",
+             "Electrification": "#8a6e00"}
 
-# Build row list: (type, label, group)  type = "header" | "feature"
+# Font sizes
+FS_TITLE  = 40
+FS_HDR    = 34
+FS_FEAT   = 31
+FS_ACTOR  = 31
+DOT_MS    = 28
+
+# Build row list
 rows = []
 for group, feats in feature_groups.items():
     rows.append(("header", group, group))
@@ -92,80 +99,82 @@ for group, feats in feature_groups.items():
 n_rows   = len(rows)
 n_actors = len(actors)
 
-cell   = 1.72          # inches per cell (square)
-lpad   = 9.0           # left label column width
-fig_w  = lpad + n_actors * cell
-fig_h  = 3.8 + n_rows * cell   # 3.8 for top actor label area
+cell  = 2.3    # inches per cell
+lpad  = 11.5   # left label area
+rpad  = 0.9    # right padding to avoid clipping
+fig_w = lpad + n_actors * cell + rpad
+fig_h = 5.5 + n_rows * cell
 
 fig = plt.figure(figsize=(fig_w, fig_h))
 
-# Axes: x = 0..n_actors, y = 0..n_rows (inverted so row 0 is top)
-ax = fig.add_axes([lpad / fig_w, 0.02, (n_actors * cell) / fig_w, (n_rows * cell) / fig_h])
+ax_l = lpad / fig_w
+ax_b = 0.02
+ax_w = (n_actors * cell) / fig_w
+ax_h = (n_rows * cell) / fig_h
+
+ax = fig.add_axes([ax_l, ax_b, ax_w, ax_h])
 ax.set_xlim(-0.5, n_actors - 0.5)
-ax.set_ylim(n_rows - 0.5, -0.5)   # inverted
+ax.set_ylim(n_rows - 0.5, -0.5)
 ax.set_aspect("equal")
 ax.axis("off")
 
+# Pass 1 — background patches (full width for every row)
 for row_i, (rtype, label, group) in enumerate(rows):
-    bg = group_bg[group]
-    hdr_c = group_hdr[group]
+    fc = group_hdr[group] if rtype == "header" else group_bg[group]
+    ax.add_patch(mpatches.FancyBboxPatch(
+        (-0.5, row_i - 0.49), n_actors, 0.98,
+        boxstyle="square,pad=0", fc=fc, ec="none", zorder=1))
 
-    if rtype == "header":
-        # Full-width coloured header band
-        ax.add_patch(mpatches.FancyBboxPatch(
-            (-0.5, row_i - 0.45), n_actors, 0.9,
-            boxstyle="square,pad=0", fc=hdr_c, ec="none", zorder=1))
-        ax.text(-0.5, row_i, f"  {label}", va="center", ha="left",
-                fontsize=23, fontweight="bold", color="white", zorder=3)
-    else:
-        # Feature row background
-        ax.add_patch(mpatches.FancyBboxPatch(
-            (-0.5, row_i - 0.45), n_actors, 0.9,
-            boxstyle="square,pad=0", fc=bg, ec="none", zorder=1))
-        # Vertical grid lines
-        for col_i in range(n_actors):
-            ax.axvline(col_i - 0.5, color="white", lw=1.0, zorder=2)
-        # Dots
-        vals = connectivity[label]
-        for col_i, v in enumerate(vals):
-            if v:
-                ax.plot(col_i, row_i, "o", ms=22,
-                        color=dot_colour[group],
-                        mec="white", mew=1.0, zorder=4)
-
-# Horizontal separators between groups
-grp_rows = [i for i, (t, _, _) in enumerate(rows) if t == "header"]
-for gr in grp_rows:
-    ax.axhline(gr - 0.5, color="#888", lw=1.2, zorder=3)
-
-# Feature labels — placed in figure coords to the left of the axes
-ax_l = lpad / fig_w
-ax_b = 0.02
-ax_h = (n_rows * cell) / fig_h
-row_h = ax_h / n_rows
-
+# Pass 2 — white column dividers on feature rows only (line segments, not axvline)
 for row_i, (rtype, label, group) in enumerate(rows):
     if rtype == "feature":
-        # y position in figure coords (inverted axis: row 0 at top)
-        y_fig = ax_b + ax_h - (row_i + 0.5) * row_h
-        fig.text(ax_l - 0.008, y_fig, label,
-                 ha="right", va="center", fontsize=21,
+        for col_i in range(n_actors + 1):
+            x = col_i - 0.5
+            ax.plot([x, x], [row_i - 0.49, row_i + 0.49],
+                    color="white", lw=1.5, zorder=2, solid_capstyle="butt")
+
+# Pass 3 — group divider lines between sections
+for row_i, (rtype, _, _) in enumerate(rows):
+    if rtype == "header" and row_i > 0:
+        ax.plot([-0.5, n_actors - 0.5], [row_i - 0.5, row_i - 0.5],
+                color="#666", lw=1.5, zorder=5)
+
+# Pass 4 — header labels (centred in band) and dots
+for row_i, (rtype, label, group) in enumerate(rows):
+    if rtype == "header":
+        ax.text((n_actors - 1) / 2, row_i, label,
+                va="center", ha="center",
+                fontsize=FS_HDR, fontweight="bold", color="white", zorder=3)
+    else:
+        for col_i, v in enumerate(connectivity[label]):
+            if v:
+                ax.plot(col_i, row_i, "o", ms=DOT_MS,
+                        color=dot_col[group], mec="white", mew=1.5, zorder=4)
+
+# Feature labels — left-aligned in left margin
+row_h_fig = ax_h / n_rows
+for row_i, (rtype, label, group) in enumerate(rows):
+    if rtype == "feature":
+        y_fig = ax_b + ax_h - (row_i + 0.5) * row_h_fig
+        fig.text(0.01, y_fig, label,
+                 ha="left", va="center", fontsize=FS_FEAT,
                  transform=fig.transFigure)
 
-# Actor labels — rotated 45°, placed above the axes
+# Actor labels — rotated above axes
+col_w_fig = ax_w / n_actors
 ax_top = ax_b + ax_h
-col_w  = (n_actors * cell) / fig_w / n_actors
-
 for col_i, actor in enumerate(actors):
-    x_fig = ax_l + (col_i + 0.5) * col_w
-    fig.text(x_fig, ax_top + 0.008, actor,
-             ha="left", va="bottom", fontsize=21, fontweight="bold",
+    x_fig = ax_l + (col_i + 0.5) * col_w_fig
+    fig.text(x_fig, ax_top + 0.006, actor,
+             ha="left", va="bottom",
+             fontsize=FS_ACTOR, fontweight="bold",
              rotation=40, rotation_mode="anchor",
              transform=fig.transFigure)
 
-fig.text(0.01, 0.99,
+# Title
+fig.text(0.01, 0.995,
          "Smart Meter Analytics — Value-Added Features by Actor",
-         ha="left", va="top", fontsize=27, fontweight="bold",
+         ha="left", va="top", fontsize=FS_TITLE, fontweight="bold",
          transform=fig.transFigure)
 
 out = "data/value_features_matrix.png"
