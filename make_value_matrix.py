@@ -92,10 +92,10 @@ for group, feats in feature_groups.items():
 n_rows   = len(rows)
 n_actors = len(actors)
 
-cell   = 0.72          # inches per cell (square)
-lpad   = 3.6           # left label column width
+cell   = 0.92          # inches per cell (square)
+lpad   = 4.8           # left label column width
 fig_w  = lpad + n_actors * cell
-fig_h  = 1.4 + n_rows * cell   # 1.4 for top actor label area
+fig_h  = 2.0 + n_rows * cell   # 2.0 for top actor label area
 
 fig = plt.figure(figsize=(fig_w, fig_h))
 
@@ -116,7 +116,7 @@ for row_i, (rtype, label, group) in enumerate(rows):
             (-0.5, row_i - 0.45), n_actors, 0.9,
             boxstyle="square,pad=0", fc=hdr_c, ec="none", zorder=1))
         ax.text(-0.5, row_i, f"  {label}", va="center", ha="left",
-                fontsize=8.5, fontweight="bold", color="white", zorder=3)
+                fontsize=11.5, fontweight="bold", color="white", zorder=3)
     else:
         # Feature row background
         ax.add_patch(mpatches.FancyBboxPatch(
@@ -129,7 +129,7 @@ for row_i, (rtype, label, group) in enumerate(rows):
         vals = connectivity[label]
         for col_i, v in enumerate(vals):
             if v:
-                ax.plot(col_i, row_i, "o", ms=10,
+                ax.plot(col_i, row_i, "o", ms=13,
                         color=dot_colour[group],
                         mec="white", mew=1.0, zorder=4)
 
@@ -149,7 +149,7 @@ for row_i, (rtype, label, group) in enumerate(rows):
         # y position in figure coords (inverted axis: row 0 at top)
         y_fig = ax_b + ax_h - (row_i + 0.5) * row_h
         fig.text(ax_l - 0.008, y_fig, label,
-                 ha="right", va="center", fontsize=8.0,
+                 ha="right", va="center", fontsize=10.5,
                  transform=fig.transFigure)
 
 # Actor labels — rotated 45°, placed above the axes
@@ -159,13 +159,13 @@ col_w  = (n_actors * cell) / fig_w / n_actors
 for col_i, actor in enumerate(actors):
     x_fig = ax_l + (col_i + 0.5) * col_w
     fig.text(x_fig, ax_top + 0.008, actor,
-             ha="left", va="bottom", fontsize=8.0, fontweight="bold",
+             ha="left", va="bottom", fontsize=10.5, fontweight="bold",
              rotation=40, rotation_mode="anchor",
              transform=fig.transFigure)
 
 fig.text(0.01, 0.99,
          "Smart Meter Analytics — Value-Added Features by Actor",
-         ha="left", va="top", fontsize=10.5, fontweight="bold",
+         ha="left", va="top", fontsize=13.5, fontweight="bold",
          transform=fig.transFigure)
 
 out = "data/value_features_matrix.png"
