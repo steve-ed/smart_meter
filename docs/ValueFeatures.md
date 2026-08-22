@@ -221,3 +221,39 @@ All of the above, plus:
 - Post-installation monitoring package — enrol the client in smart meter monitoring at point of installation; the installer is referenced in the retrofit verification baseline
 - Living EPC updates maintain a connection with the property — when the band improves enough to trigger a green mortgage or a further measure, the original installer is the natural referral
 - Humidity alert service post solid wall insulation — ongoing monitoring as a paid aftercare product, addressing the interstitial condensation risk that clients and insurers increasingly expect to be managed
+
+---
+
+## Solar Installers
+
+**Pre-installation sizing and feasibility**
+- Consumption profile analysis (Feature 3) — half-hourly load data identifies when the household uses electricity and how much; sizes the array against actual demand rather than floor area rules of thumb
+- Battery size optimisation (Feature 2) — simulates every common battery size against the client's usage and local tariff before installation; payback curve and 10-year NPV for each size, factoring in solar export data where a previous system exists
+- Tariff matching (Feature 1) — identifies which export tariff (SEG, smart export, Agile) maximises the client's return at their usage pattern; Agile and time-of-use tariffs interact differently with solar depending on the household's flexibility
+- EV charger and battery storage readiness — visual check of consumer unit capacity, available wall space, and existing circuits at the site survey; single visit covers solar, battery, and EV charger feasibility together
+- Appliance detection (Feature 3) — identifies large flexible loads (EV charger, immersion heater, dishwasher) that can be scheduled to maximise solar self-consumption; sets realistic self-consumption rate expectations before installation
+
+**Post-installation monitoring**
+- Solar inverter API integration — direct half-hourly generation data from the inverter rather than inferring generation from net import/export figures; gross generation separated cleanly from battery discharge and demand reduction
+- Self-consumption rate calculation — proportion of generated electricity used on-site vs exported; tracks whether the system is performing as the installation proposal modelled
+- Panel degradation detection — gradual fall in output per unit of irradiance over months indicates soiling, shading from new obstructions, or cell degradation; distinguishes weather variation from genuine underperformance
+- Export vs self-consumption optimisation — ongoing analysis of whether shifting flexible loads (washing machine, dishwasher, EV charging) to solar generation windows would materially improve self-consumption, with a pound figure
+
+**Battery upsell and optimisation**
+- Battery payback trigger — Feature 2 re-runs annually against current tariff rates and usage; when the payback period drops below the client's threshold, an automatic prompt supports the upsell conversation with fresh numbers
+- Battery dispatch performance — compares actual battery behaviour against the optimal rule-based dispatch simulation; identifies whether the battery controller is charging and discharging at the right times given the tariff
+- Carbon-aware scheduling (Feature 8) — coordinates battery charge/discharge with National Grid carbon intensity forecast; relevant for clients motivated by carbon reduction as well as cost
+
+**Tariff optimisation**
+- SEG and smart export rate comparison — calculates actual export income at current rates vs alternative export tariffs; identifies whether switching export tariff would increase annual return
+- Agile tariff analysis — models the client's solar and battery combination against Agile half-hourly prices to determine whether Agile is worth switching to; accounts for the household's actual flexibility rather than assuming full demand shifting
+
+**MCS and grant compliance**
+- Generation data for MCS performance verification — inverter API data provides the half-hourly generation record needed to verify system output against the MCS installation estimate
+- SEG registration support — confirmed smart meter export data and inverter generation data together provide the metering evidence required for SEG registration with the supplier
+
+**Client retention**
+- Annual solar performance report — generation vs forecast, self-consumption rate, export income, and panel degradation assessment; a structured annual touchpoint that positions the installer as the ongoing performance manager
+- Degradation alert — automatic notification when output per unit of irradiance falls more than 10% below the installation baseline; creates a service visit opportunity before the client notices independently
+- Battery upsell at the right moment — payback analysis re-run against current electricity prices rather than installation-day prices; surfaces the conversation when the numbers actually support it
+- EV charger as the natural next step — consumption data shows whether an EV charger would materially increase self-consumption; quantified case for the next installation
