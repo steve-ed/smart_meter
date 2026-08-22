@@ -55,3 +55,34 @@ All of the above, plus:
 - Retrofit readiness pack — define upgrade budget before making an offer
 - Radiator sizing audit — expose hidden heat pump installation cost
 - Pre-purchase baseline — document property condition at purchase for dispute protection
+
+---
+
+## Estate Agents
+
+**Listing differentiation**
+- Living EPC and performance gap report — market actual measured performance, not just the certificate band
+- Verified running costs — real consumption history as a marketing claim, not a modelled estimate
+- Green mortgage flag on listing — identify properties where buyers can access preferential rates
+- Indoor environment history — evidence of warmth, dryness, and air quality as part of the listing pack
+- Thermal imaging — photographic fabric evidence to support asking price
+
+**Reducing fall-throughs and renegotiation**
+- Pre-listing energy survey — identify boiler, damp, and insulation issues before a buyer's surveyor does
+- Boiler condition record — remove surprise maintenance discoveries that erode the agreed price
+- Moisture mapping — head off damp-related renegotiations after survey
+- Retrofit readiness pack — resolve upgrade cost uncertainty before it becomes a counter-offer
+
+**Buyer matching**
+- Green mortgage pre-qualification — match buyers with green mortgage approval to eligible properties
+- EPC performance data as a search filter — surface properties where measured band exceeds the lodged certificate
+
+**Revenue diversification**
+- Referral to enhanced EPC, heating health check, and indoor environment report services
+- Retrofit readiness pack commissioned at point of instruction
+- Smart meter monitoring enrolment at completion — ongoing relationship beyond the transaction
+
+**Post-sale retention**
+- Enrol property in continuous smart meter monitoring at point of sale
+- Agent becomes the natural referral point for future boiler, insulation, and upgrade assessments
+- Living EPC updates create a reason to re-engage the vendor ahead of re-sale
