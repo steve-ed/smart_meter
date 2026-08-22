@@ -150,3 +150,38 @@ All of the above, plus:
 - Living EPC updates reference the assessor's baseline measurement — maintaining professional visibility between visits
 - Retrofit verification return visit (Feature 13c) — statistical before/after comparison after insulation or window installation
 - Natural referral point when the system recommends a U-value survey, blower door test, boiler service, or heat pump assessment
+
+---
+
+## Heating Engineers
+
+**Proactive service referrals**
+- Boiler efficiency trending (Feature 5) — step-change or gradual degradation alert triggers a service call before breakdown, replacing reactive emergency call-outs
+- Micro-leak detection (Feature 10) — sustained overnight gas above baseline flags a possible boiler fault or gas issue for immediate investigation
+- Frost alert with heating failure (Feature 10) — boiler expected to be running but no gas detected, combined with frost forecast; referral before the client comes home to a cold house
+- Heating efficiency scoring (Feature 6) — identifies properties where normalised gas consumption is rising, indicating system performance problems
+
+**Heat pump — pre-installation**
+- Heat pump feasibility report (Feature 4) — modelled COP at current and alternative flow temperatures, with payback period; positions the engineer's quote against an independent analysis
+- Radiator sizing assessment — output at 45–50°C flow vs current 70–80°C requirement; identifies which radiators need upgrading before installation, preventing underperformance complaints post-commissioning
+- Flow temperature measurement (flow/return probes) — actual system flow temperature rather than assumed value; the single largest source of COP modelling uncertainty
+
+**Heat pump — post-installation**
+- Heat meter — directly measured seasonal COP vs MCS-rated performance; confirms the installation is delivering what was promised and supports warranty and ECO4 compliance sign-off
+- Retrofit verification (Feature 13c) — statistical before/after comparison of fabric heat loss; distinguishes heating system improvement from building fabric performance
+- COP monitoring — ongoing seasonal performance tracking; early warning of refrigerant loss, fouling, or control system issues
+
+**System balancing and optimisation**
+- Flow and return temperature probes — delta-T monitoring indicates whether heat is being extracted efficiently; a small delta-T suggests sludge, airlocks, or an oversized pump
+- Hot water cylinder sensor — confirms weekly 60°C legionella pasteurisation cycle; measures cylinder standing heat loss; identifies whether immersion heater is duplicating boiler output
+- Boiler pre-warm optimisation (Feature 9) — data on actual boiler start behaviour supports smart thermostat recommendations and system scheduling advice
+
+**New service lines**
+- Sensor installation — flow/return probes, cylinder sensor, and indoor temperature sensors as a billable add-on to a service visit
+- Annual heating system efficiency report — compiled from smart meter trending data, flue gas reading, and flow temperature measurement
+- Post-installation monitoring setup — enrol client in smart meter data sharing and heat pump COP tracking at point of commissioning
+
+**Client retention**
+- Boiler efficiency alerts create a direct, data-backed trigger for the annual service call
+- Heat pump COP dashboard — ongoing seasonal performance data maintains the relationship beyond installation
+- System alerts (frost, micro-leak, efficiency decline) route to the engineer as the named professional contact, replacing ad hoc emergency calls with a managed service relationship
