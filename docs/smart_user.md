@@ -783,3 +783,83 @@ The central challenge for landlord-facing services is that most energy cost savi
 - **All-inclusive tenancies** — where energy is bundled into rent, consumption savings directly improve landlord margin
 
 For standard assured shorthold tenancies where tenants pay their own bills, the landlord pitch is built on compliance, risk mitigation, and asset protection rather than energy cost reduction. Services priced and marketed on that basis — particularly the indoor environment report and the living EPC — are the most natural fit for the private rented sector.
+
+---
+
+## Value-Added Services for Property Sellers
+
+The seller's situation is the reverse of the landlord's. Where a landlord faces a split incentive — improvements benefit tenants, not them — a seller benefits directly from anything that increases buyer confidence, widens the buyer pool, or justifies a higher asking price. Energy performance shifts from a compliance burden to a marketing asset.
+
+---
+
+### Green Mortgage Eligibility — Feature 13d
+
+The most commercially significant angle. Feature 13d generates a structured evidence package of measured fabric performance. If the property qualifies for a green mortgage (typically EPC B or above, or demonstrably strong measured performance), a buyer can access a preferential rate — typically 0.1–0.2% below standard. On a £300,000 mortgage over 25 years, that difference is worth £5,000–10,000 to the buyer.
+
+A seller who can hand a buyer pre-assembled green mortgage evidence — measured heat loss, living EPC band, retrofit verification — removes a significant friction from the buyer's decision and differentiates the property from comparable listings where the buyer would have to commission this themselves post-sale.
+
+---
+
+### Living EPC and Performance Gap — Features 13a and 13b
+
+A standard EPC is a one-off snapshot that may be years old and relies heavily on age-band defaults. For many properties, the actual fabric performance is materially better than the certificate suggests — Feature 13a puts a pound figure on this gap.
+
+For a seller, this is directly usable marketing material: "This property carries a D certificate, but 18 months of measured data shows it performs at the C/B boundary — here is the evidence." This widens the buyer pool (buyers filtering on EPC band), supports asking price, and preempts the buyer's surveyor flagging the EPC as a risk.
+
+If the living EPC band (Feature 13b) is higher than the lodged certificate, the seller can choose to commission a formal RdSAP reassessment using the measured data as the basis — potentially achieving a band uplift before going to market.
+
+---
+
+### Transparent Running Costs — Features 1 and 6
+
+Feature 1 produces an actual annual energy cost from real consumption history, not a modelled estimate. Feature 6 benchmarks the property against similar type and build-era properties. Together these give a buyer something an EPC cannot: verified running costs.
+
+Packaged as a one-page energy profile — "this property cost £X to heat and power over the past 12 months, placing it in the top 30% of similar properties" — this addresses one of the most common buyer anxieties about older homes and removes an information asymmetry that otherwise favours the buyer in negotiation.
+
+---
+
+### Retrofit Roadmap — Features 2, 4, and Retrofit Readiness Pack
+
+A buyer purchasing an older property faces uncertainty about what it will cost to upgrade. A seller who provides a pre-commissioned retrofit readiness pack — prioritised measures, indicative costs, payback periods, heat pump feasibility verdict, battery sizing — converts that uncertainty into a defined plan. The buyer sees not just what the property is today but what it can become and at what cost.
+
+Feature 4 (heat pump feasibility including radiator sizing assessment) is particularly valuable: the most common single cause of heat pump installation underperformance is radiators sized for 70–80°C flow that cannot deliver at 45–50°C. A seller who has already done this analysis removes a risk that sophisticated buyers price into their offers.
+
+---
+
+### Enhanced EPC with Thermal Imaging
+
+A thermal imaging walkround on a cold morning before marketing produces photographic evidence of where heat is and is not escaping. For a well-insulated property this is positive marketing material — images showing uniform exterior temperature, no cold spots at window frames, no missing insulation sections. For a property with known fabric issues it identifies them before a buyer's surveyor does, allowing the seller to either remedy them or price accordingly.
+
+The Enhanced EPC (thermal imaging, loft depth probe, moisture check, CO₂ snapshot) packaged as a pre-marketing survey gives buyers and their solicitors a higher-quality information base, which can materially speed up conveyancing — relevant in chains where delays are costly.
+
+---
+
+### Indoor Environment History
+
+Feature 14 (comfort vs cost) and the humidity and mould monitoring together produce a timestamped record of indoor conditions during occupation. A property with 12–24 months of recorded data showing consistently warm, dry, well-ventilated conditions addresses buyer concerns about damp and cold that are common in older housing stock and that a buyer cannot otherwise verify from a single viewing.
+
+For a property that has passed through a cold winter without triggering any humidity or mould alerts, that record is a genuine asset. It is also a legal protection for the seller — documented evidence of conditions during ownership.
+
+---
+
+### Boiler Condition Record — Feature 5
+
+Feature 5 trend data shows whether the boiler's efficiency has been stable, gradually declining, or experienced a step-change event. A seller who can demonstrate a flat efficiency trend over two heating seasons — with no degradation alerts — removes buyer risk around a hidden boiler problem and reduces the likelihood of a buyer using boiler age as a negotiating lever.
+
+---
+
+### The Seller's Pack
+
+All of the above bundles naturally into a pre-marketing property energy pack:
+
+| Document | Source | Value to buyer |
+|---|---|---|
+| Living EPC with performance gap | Features 13a/13b | Actual band vs certificate |
+| Verified annual running costs | Features 1 and 6 | Removes cost uncertainty |
+| Green mortgage evidence package | Feature 13d | Direct mortgage rate benefit |
+| Retrofit roadmap | Features 2, 4, readiness pack | Defined upgrade pathway |
+| Thermal image survey | Enhanced EPC | Visual fabric evidence |
+| Indoor environment history | Features 14, humidity monitoring | Damp and comfort record |
+| Boiler condition record | Feature 5 | Hidden maintenance risk removed |
+
+The structural advantage for sellers over all other user types is that the cost of generating this evidence is borne by the seller, but the financial benefit — a wider buyer pool, a stronger asking price, and faster conveyancing — accrues directly to them. There is no split incentive. Every pound spent on pre-marketing energy evidence has a direct return through the sale.
