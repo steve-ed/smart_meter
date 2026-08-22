@@ -863,3 +863,92 @@ All of the above bundles naturally into a pre-marketing property energy pack:
 | Boiler condition record | Feature 5 | Hidden maintenance risk removed |
 
 The structural advantage for sellers over all other user types is that the cost of generating this evidence is borne by the seller, but the financial benefit — a wider buyer pool, a stronger asking price, and faster conveyancing — accrues directly to them. There is no split incentive. Every pound spent on pre-marketing energy evidence has a direct return through the sale.
+
+---
+
+## Value-Added Services for Property Buyers
+
+The buyer occupies the opposite position to the seller. Where the seller uses energy evidence to support asking price, the buyer uses it to discover hidden costs, identify negotiating leverage, and plan what the property will actually cost to own and improve. The same tools serve opposite interests — and crucially, a buyer should commission independent assessment rather than relying solely on evidence provided by the seller.
+
+---
+
+### Pre-Purchase Due Diligence — Independent Fabric Assessment
+
+The most important distinction for a buyer is independence. A seller's energy pack may be accurate, but it will not include anything that damages the seller's position. A buyer commissioning their own pre-purchase survey using the methods described in this guide gets an unfiltered picture.
+
+**Thermal imaging walkround** — Conducted on a cold morning with the heating running, this reveals what neither a standard survey nor the EPC will show: specific sections of missing or failed cavity wall insulation, air leakage paths around window frames and loft hatches, thermal bridging at structural elements, and glazing failures. For a property where the seller claims CWI was installed, a thermal image either confirms it or shows the sections where it has settled or is absent. This cannot be hidden from an independent survey.
+
+**Cavity wall endoscope inspection** — A 12mm drill hole at high level in the external wall gives a direct visual of whether cavity insulation is present and in good condition. Saturated or absent insulation in a property marketed as insulated is a significant defect and a direct negotiating point.
+
+**Moisture meter readings** — Elevated moisture content in walls adjacent to a cavity insulation claim, or at ground floor level, indicates either a failing installation or rising damp. Neither will appear on an EPC. A reading above 20% at a CWI wall is a contraindication for the insulation's effectiveness and a likely future remediation cost.
+
+**Flue gas analysis** — The actual combustion efficiency of the boiler on the day of the survey, not the manufacturer's rating or the SAP default. A boiler running at 78% efficiency rather than the assumed 89% represents approximately £120/year in additional gas costs. An old boiler running below 75% is a near-term replacement cost that should be reflected in the offer.
+
+---
+
+### Negotiating Leverage from Measured Evidence
+
+Every significant discrepancy between what the EPC assumes and what measurement shows is a potential negotiating point:
+
+**Performance gap working against the buyer** — If Feature 13a shows the property loses heat materially faster than the EPC predicts (a positive performance gap in the wrong direction), this is evidence the property is worse than certificated. The pound figure on the additional annual heating cost is a direct input to a price reduction argument: if the property costs £400/year more to heat than a comparable certificated property, a buyer can argue for a commensurate price adjustment.
+
+**Boiler efficiency shortfall** — Flue gas analysis showing combustion efficiency 10+ percentage points below the SAP assumption quantifies an ongoing cost and a near-term capital replacement. A boiler quote obtained before exchange gives a concrete figure for renegotiation.
+
+**Missing or failed insulation** — Thermal imaging or endoscope evidence of absent or degraded CWI, combined with the retrofit cost to remedy it, is a well-evidenced basis for price reduction or a seller contribution to works.
+
+**Moisture and damp** — Elevated moisture readings in multiple locations, particularly where the property has been decorated recently, shift the burden of explanation to the seller and may warrant a specialist damp survey before exchange.
+
+---
+
+### Green Mortgage Eligibility
+
+If the property qualifies for a green mortgage — typically requiring EPC B or above, or measured performance evidence meeting the lender's criteria — the buyer can access a preferential interest rate of approximately 0.1–0.2% below standard. On a £300,000 mortgage over 25 years this is worth £5,000–10,000 over the mortgage term.
+
+Feature 13d generates a structured evidence package of measured fabric performance suitable for green mortgage applications. Where the seller has already produced this, the buyer should verify it with an independent assessment before relying on it in a mortgage application. Where the seller has not produced it, the buyer can commission it — potentially qualifying for a rate the seller was unaware was available.
+
+If the living EPC band (Feature 13b) is demonstrably higher than the lodged certificate, the buyer may be able to qualify for a green mortgage on a property that would not qualify on its certificate alone — without waiting for a formal reassessment.
+
+---
+
+### Running Cost Verification
+
+Feature 1 produces an actual annual energy cost from real consumption history. A seller who provides smart meter consumption data is offering something verifiable — the buyer can request the half-hourly data directly from the smart meter consent service and reproduce the calculation independently. This removes a common area of dispute: whether the seller's claimed running costs are based on actual usage or an optimistic estimate.
+
+Feature 6 benchmarks the property against similar type and build-era properties. If the property is in the bottom quartile of its peer group for normalised heating efficiency, this is an early signal of either insulation failure or a heating system problem — either of which warrants further investigation before exchange.
+
+---
+
+### Upgrade Cost Planning
+
+A buyer purchasing an older property needs to understand not just what it costs today but what it will cost to bring it to a satisfactory standard. The retrofit readiness pack provides a prioritised improvement plan with indicative costs and payback periods. Commissioned pre-purchase, this converts upgrade uncertainty — often the largest source of price negotiation disagreement — into a defined schedule that both buyer and seller can reference.
+
+**Heat pump feasibility — Feature 4** — If the buyer intends to install a heat pump, the radiator sizing assessment is the critical pre-purchase check. Existing radiators sized for 70–80°C flow will underperform at the 45–50°C that a heat pump operates at efficiently. Discovering this before purchase allows the buyer to factor in radiator replacement costs; discovering it after installation is expensive. A pre-purchase feasibility verdict with a radiator audit takes 30 minutes on site.
+
+**Battery and solar readiness** — EV charger readiness (driveway, consumer unit proximity, existing circuit), solar PV suitability (roof orientation, shading, available area), and battery storage space can all be assessed on a single pre-purchase visit and feed directly into the buyer's electrification budget.
+
+---
+
+### Post-Purchase Baseline
+
+Commissioning a fabric assessment before moving in establishes a pre-occupation baseline that has two uses. First, it documents the condition of the property at the point of purchase — relevant if disputes arise with the seller about undisclosed defects. Second, it provides a measured starting point against which any subsequent retrofit improvements can be verified (Feature 13c), confirming that insulation, windows, or draught-proofing works have delivered the claimed improvement.
+
+Establishing smart meter data sharing, installing an indoor temperature sensor, and running the system from day one means the buyer builds up a full heating season of data in their first winter — the fastest route to the living EPC, the performance gap analysis, and the boiler efficiency trending that require a season of data to initialise.
+
+---
+
+### The Buyer's Pre-Purchase Survey Pack
+
+| Assessment | Method | Buyer's purpose |
+|---|---|---|
+| Independent thermal imaging | Enhanced EPC on buyer's instruction | Identify insulation defects not in seller's pack |
+| Cavity wall endoscope | Endoscope inspection | Confirm or challenge CWI claims |
+| Moisture mapping | Pin moisture meter | Identify damp risk before exchange |
+| Boiler efficiency reading | Flue gas analysis | Quantify replacement risk |
+| Fabric performance vs EPC | Feature 13a pre-screening | Identify if property underperforms certificate |
+| Running cost verification | Feature 1 from independent data request | Verify seller's cost claims |
+| Peer benchmarking | Feature 6 | Flag heating efficiency outliers |
+| Green mortgage eligibility | Feature 13d assessment | Qualify for preferential rate |
+| Retrofit cost plan | Retrofit readiness pack | Convert upgrade uncertainty to defined budget |
+| Radiator sizing for heat pump | Feature 4 radiator audit | Identify hidden electrification cost |
+
+The buyer's structural advantage is timing: all of this information is available before contracts are exchanged. A buyer who commissions independent pre-purchase assessment enters negotiation with the same quality of evidence the seller holds — or better, if the seller's pack was incomplete. The cost of a comprehensive pre-purchase energy survey is modest relative to the purchase price and the potential for a price reduction or the avoidance of a costly post-purchase surprise.
