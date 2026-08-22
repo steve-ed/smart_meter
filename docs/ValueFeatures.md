@@ -116,3 +116,37 @@ All of the above, plus:
 - Enrol clients in smart meter monitoring at completion — broker becomes the referral point when living EPC improves enough to trigger a remortgage conversation
 - Annual green mortgage review — living EPC updates provide a structured, data-backed reason to contact clients each heating season
 - Portfolio dashboard for landlord clients — recurring engagement on compliance and remortgage eligibility across multiple properties
+
+---
+
+## EPC Assessors
+
+**Revenue per visit — tiered add-on services**
+- Enhanced EPC (£50–80 additional) — thermal imaging walkround, loft depth probe, moisture check, CO₂ and humidity snapshot; photographic evidence report
+- Heating system health check (£40–60 additional) — flue gas analysis, radiator sizing, flow temperature check; boiler efficiency reading and heat pump feasibility verdict
+- Indoor environment report (£30–50 additional) — CO₂, CO, humidity, and temperature at multiple points; ventilation failure and mould risk flagging
+- Retrofit readiness pack (£80–120 additional) — combines all of the above with cavity wall endoscope and solar/EV suitability; prioritised improvement schedule with costs and payback periods
+
+**Certificate accuracy — reducing reliance on age-band defaults**
+- Loft insulation depth probe — precise measurement vs visual estimate; difference of 150mm vs 300mm can shift the EPC band
+- Flue gas analyser — actual boiler combustion efficiency on the day, replacing the SAP default assumption
+- Thermal imaging — confirms or challenges default U-value assumptions; identifies specific elements driving the score
+- Cavity wall endoscope — unambiguous evidence of CWI presence and condition, resolving the ambiguity a thermal image alone cannot
+- Radiator sizing assessment — key input for heat pump feasibility; rarely done on a standard visit
+
+**Liability reduction**
+- Moisture meter — identifies walls above 20% moisture content where CWI is contraindicated; prevents a defective measure recommendation
+- CO detector — flags sub-acute poisoning risk near gas appliances that a standard EPC visit would not detect
+- Damp mapping — documents condition at the time of assessment, protecting the assessor against post-certificate complaints
+
+**New client segments**
+- Pre-listing survey for sellers — commissioned before marketing, independent of the sale EPC
+- Pre-purchase survey for buyers — independent fabric and heating assessment before exchange
+- Landlord compliance reports — indoor environment evidence for EPC C trajectory and Awaab's Law obligations
+- Green mortgage evidence package (Feature 13d) — structured fabric performance report for lender submission
+
+**Ongoing relationship beyond the one-off certificate**
+- Smart meter monitoring enrolment at point of visit — assessor installs indoor sensor, enables data sharing, explains the system
+- Living EPC updates reference the assessor's baseline measurement — maintaining professional visibility between visits
+- Retrofit verification return visit (Feature 13c) — statistical before/after comparison after insulation or window installation
+- Natural referral point when the system recommends a U-value survey, blower door test, boiler service, or heat pump assessment
