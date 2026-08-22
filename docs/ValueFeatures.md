@@ -86,3 +86,33 @@ All of the above, plus:
 - Enrol property in continuous smart meter monitoring at point of sale
 - Agent becomes the natural referral point for future boiler, insulation, and upgrade assessments
 - Living EPC updates create a reason to re-engage the vendor ahead of re-sale
+
+---
+
+## Mortgage Brokers
+
+**Green mortgage sourcing**
+- Green mortgage eligibility check at first client meeting — identify qualifying properties before product search
+- Lender matching by evidence type — distinguish lenders with a hard EPC band gate from those accepting measured performance evidence (Feature 13d)
+- Performance gap assessment — identify properties where measured fabric performance exceeds the lodged certificate band, opening green mortgage eligibility that the EPC alone would exclude
+- Living EPC band as qualification evidence — monthly-updated measured band submitted alongside or in place of a stale certificate
+
+**Remortgage triggers**
+- Living EPC band improvement after retrofit — automatic prompt to review whether the client now qualifies for a green rate
+- Retrofit verification report (Feature 13c) — statistical confirmation that an improvement measure worked, usable as evidence for a remortgage application
+- EPC uplift pathway advice — tell the client which single measure is most likely to shift their band and unlock a better rate, before they commission unnecessary works
+
+**BTL and portfolio clients**
+- EPC compliance tracker across portfolio — flag properties at risk of falling below the anticipated minimum EPC C requirement before a mortgage renewal falls due
+- Boiler condition record — flag near-term replacement risk on portfolio properties ahead of a remortgage, where a lender may require a satisfactory heating system condition report
+- Retrofit readiness pack — support BTL clients planning upgrade spend to meet compliance deadlines
+
+**Affordability and client advice**
+- Verified annual running costs — real consumption data to support affordability discussions, replacing estimated figures from EPC modelling
+- Budget forecast — projected monthly energy cost for the remainder of the year, useful for clients on tight affordability margins
+- Peer benchmarking — show client how the property's running costs compare to similar stock, supporting or challenging the asking price
+
+**Client retention**
+- Enrol clients in smart meter monitoring at completion — broker becomes the referral point when living EPC improves enough to trigger a remortgage conversation
+- Annual green mortgage review — living EPC updates provide a structured, data-backed reason to contact clients each heating season
+- Portfolio dashboard for landlord clients — recurring engagement on compliance and remortgage eligibility across multiple properties
