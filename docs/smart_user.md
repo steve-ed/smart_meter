@@ -728,3 +728,58 @@ Combines enhanced EPC, cavity wall endoscope inspection, moisture mapping, and s
 The EPC visit is the natural point at which to enrol the property in continuous smart meter monitoring. The assessor can confirm smart meter type and connectivity, enable half-hourly data sharing, install the indoor temperature sensor (a five-minute task), and explain what the system will do over the following months.
 
 The EPC score becomes the baseline; the system then tracks whether actual performance matches the certificate and flags when professional investigation is warranted. This creates a recurring relationship between the assessor and the property rather than a one-off transaction — the assessor becomes the natural referral point when the system recommends a U-value measurement, a blower door test, a boiler service, or a heat pump feasibility assessment. The smart meter analytics effectively extend the assessor's professional reach into the property between visits, creating a continuous monitoring and referral service built on top of the initial EPC.
+
+---
+
+## Value-Added Activities for Landlords and HMOs
+
+The features described in this document are written primarily for owner-occupiers. For landlords — particularly those managing Houses in Multiple Occupation (HMOs) or similar multi-tenancy properties — the value proposition shifts. Landlords pay for the boiler, insulation, and EPC compliance; tenants pay the energy bills. The strongest applications are therefore the **compliance and risk track** rather than the cost-saving track, which accrues to tenants unless energy costs are bundled into inclusive rent.
+
+---
+
+### Regulatory Compliance (Most Urgent Driver)
+
+**Indoor environment report** — The most immediately relevant commercial offering for landlords ahead of the anticipated minimum EPC C requirement for the private rented sector. CO₂, humidity, temperature, and CO readings across a multi-room property address Awaab's Law obligations (damp and mould duty of care), CO detector requirements, and ventilation failures that a standard EPC does not capture. Packaged as a landlord compliance report, this is a distinct chargeable service from the EPC itself.
+
+**Living EPC — Feature 13b** — Monthly-updated EPC band derived from real measurement rather than a one-off certificate. Landlords managing a portfolio can track which properties are drifting toward non-compliance before a formal reassessment triggers enforcement action. A portfolio dashboard showing band trends across multiple properties would be a natural extension.
+
+---
+
+### Vacant Property Risk Management
+
+**Feature 10 — Frost alerts for vacant properties** — The alert logic is designed explicitly for unoccupied properties: no heating activity detected for 12 hours combined with a sub-2°C overnight forecast fires an alert; below -3°C the alert is marked critical (pipe burst risk within hours). This is directly valuable between tenancies and during void periods, when a burst pipe creates an insurance claim, loss of rental income, and potential damage to neighbouring units in a converted building.
+
+**Feature 11 — Vacancy-aware anomaly suppression** — Unexpected gas or electricity activity in a confirmed-empty property triggers a high-priority alert. For a landlord managing multiple properties remotely, this provides early warning of a break-in or appliance fault without requiring a physical visit.
+
+---
+
+### Multi-Room Diagnostics
+
+**Multiple indoor temperature sensors** — In an HMO with individual lettable rooms, per-room sensors enable condition monitoring at room level. The document notes that a room decaying significantly faster than others during a free-cooling event indicates failed or missing insulation in a specific wall section. This directs repair spend precisely rather than triggering a whole-building survey, and produces a timestamped evidence record relevant to disrepair defences.
+
+**Humidity sensors and mould alerts** — Relative humidity exceeding 70% in a cold room is a leading indicator of mould formation, typically preceding visible damage by several weeks. For landlords, early detection with a timestamped data trail is both a practical intervention and a legal protection. Post-retrofit humidity monitoring is particularly important after solid wall insulation installation, where interstitial condensation is a known failure mode.
+
+**Smart TRVs** — In a shared property where tenants control individual rooms, smart TRVs give the landlord visibility of heating distribution without intruding on tenants' usage. A room that consistently fails to reach the setpoint despite the boiler running indicates a radiator fault, sludge, or imbalance — problems the landlord is responsible for but would not otherwise detect until a complaint.
+
+---
+
+### Portfolio Efficiency
+
+**Feature 6 — Peer benchmarking** — Compares each property against similar type and build-era properties from national data. A landlord with a portfolio of similar terraced houses can rank them by normalised heating efficiency and prioritise insulation spend on the worst performers, rather than applying upgrades uniformly regardless of baseline condition.
+
+**Feature 5 — Boiler efficiency trending** — Alerts to gradual or sudden efficiency decline before breakdown. In a rented property the landlord bears the replacement cost; earlier detection reduces emergency call-out costs and avoids tenant complaints or claims arising from loss of heating.
+
+**Retrofit readiness pack** — Produces a prioritised list of improvement measures with indicative costs, savings, and payback periods for each property. For landlords planning EPC C upgrades across a portfolio or seeking ECO4 funding, this is a structured briefing document that avoids commissioning a full PAS 2035 assessment for every property before knowing which measures are worth pursuing.
+
+---
+
+### The Split Incentive Problem
+
+The central challenge for landlord-facing services is that most energy cost savings from this system flow to tenants, not landlords. The exceptions are:
+
+- **Boiler and fabric maintenance** — avoided replacement and repair costs accrue to the landlord
+- **Void period risk** — frost damage and appliance faults during vacant periods are the landlord's liability
+- **Compliance risk** — EPC non-compliance, damp and mould claims, and CO incidents are the landlord's legal exposure
+- **All-inclusive tenancies** — where energy is bundled into rent, consumption savings directly improve landlord margin
+
+For standard assured shorthold tenancies where tenants pay their own bills, the landlord pitch is built on compliance, risk mitigation, and asset protection rather than energy cost reduction. Services priced and marketed on that basis — particularly the indoor environment report and the living EPC — are the most natural fit for the private rented sector.
