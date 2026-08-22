@@ -185,3 +185,39 @@ All of the above, plus:
 - Boiler efficiency alerts create a direct, data-backed trigger for the annual service call
 - Heat pump COP dashboard — ongoing seasonal performance data maintains the relationship beyond installation
 - System alerts (frost, micro-leak, efficiency decline) route to the engineer as the named professional contact, replacing ad hoc emergency calls with a managed service relationship
+
+---
+
+## Insulation Installers
+
+**Pre-installation survey**
+- Thermal imaging walkround — identifies exactly which wall sections, roof areas, and window reveals are losing heat; directs the measure to where it will have most impact rather than treating the whole building envelope uniformly
+- Cavity wall endoscope — confirms whether existing CWI is present, settled, or absent in sections before recommending a full re-fill; avoids unnecessary works where partial failure has occurred
+- Moisture meter — flags walls above 20% moisture content where CWI is contraindicated; prevents a defective installation and protects the installer against post-works complaints and ECO4 non-compliance
+- Performance gap baseline (Feature 13a) — quantifies the gap between measured heat loss and EPC prediction before works begin; sets a credible improvement target and supports the grant application
+
+**Directing spend: fabric vs infiltration**
+- Wind-speed regression on τ estimates — distinguishes heat loss driven by fabric conductivity from heat loss driven by air infiltration; prevents installing insulation where draught-proofing would deliver a better return
+- CO₂ tracer gas decay — measures natural air change rate; if the property is leaky, air-tightness works should precede or accompany insulation to avoid condensation risk in the newly insulated fabric
+- Blower door pre-screening — decision framework for whether a full blower door test is warranted before recommending solid wall insulation, where air-tightness interaction is a known risk
+
+**Post-installation verification**
+- Retrofit verification (Feature 13c) — statistical before/after comparison of τ and heat loss coefficient after a 6-week settling period; confirms whether the improvement matches the claimed performance with a stated confidence level
+- Living EPC band update (Feature 13b) — immediate measured band update after works, without waiting for a formal RdSAP reassessment; provides the client with an updated certificate within one heating season
+- Measured U-value via heat flux plates — where the τ improvement is large enough to warrant it, directed in-situ U-value measurement confirms which element is responsible and provides element-level evidence for EPC lodgement
+- Green mortgage eligibility — if post-installation performance crosses a band threshold, the retrofit verification report supports a green mortgage application or remortgage
+
+**Avoiding installation failures**
+- Humidity monitoring post solid wall insulation — interstitial condensation in the insulation layer is a known failure mode for EWI and IWI; humidity sensors on the internal wall surface detect elevated moisture before visible damage occurs
+- Feature 13c underperformance detection — if τ improvement is below the expected range for the measure installed, the statistical test flags it; early detection of a defective installation before the client raises a complaint
+- Moisture re-check after CWI — repeat moisture meter readings 6–12 months post-installation confirm the wall is drying rather than wetting up further
+
+**ECO4 and grant scheme compliance**
+- Retrofit verification report as post-installation evidence — structured performance data suitable for PAS 2035 compliance documentation, potentially replacing a separate post-installation inspection for straightforward measures
+- Performance gap pre-screening for ECO4 eligibility — measured heat loss can support or strengthen a grant eligibility assessment where the EPC band alone is borderline
+- Retrofit readiness pack — bridges the gap between an EPC and a full PAS 2035 assessment for clients who need a prioritised improvement plan before committing to a specific measure
+
+**Client retention and referrals**
+- Post-installation monitoring package — enrol the client in smart meter monitoring at point of installation; the installer is referenced in the retrofit verification baseline
+- Living EPC updates maintain a connection with the property — when the band improves enough to trigger a green mortgage or a further measure, the original installer is the natural referral
+- Humidity alert service post solid wall insulation — ongoing monitoring as a paid aftercare product, addressing the interstitial condensation risk that clients and insurers increasingly expect to be managed
