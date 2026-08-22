@@ -86,7 +86,7 @@ dot_col   = {"EPC & Compliance": "#1a6fa8", "Financial": "#2a7a2a",
 FS_TITLE  = 40
 FS_HDR    = 34
 FS_FEAT   = 31
-FS_ACTOR  = 31
+FS_ACTOR  = 22
 DOT_MS    = 28
 
 # Build row list
@@ -99,23 +99,23 @@ for group, feats in feature_groups.items():
 n_rows   = len(rows)
 n_actors = len(actors)
 
-cell  = 2.3    # inches per cell
-lpad  = 11.5   # left label area
-rpad  = 0.9    # right padding to avoid clipping
-fig_w = lpad + n_actors * cell + rpad
-fig_h = 5.5 + n_rows * cell
+col_w = 1.15   # column width — wide enough for actor labels
+row_h = 1.4    # row height — increased for larger feature font
+lpad  = 6.5    # left label area
+rpad  = 0.4    # right padding
+fig_w = lpad + n_actors * col_w + rpad
+fig_h = 3.2 + n_rows * row_h
 
 fig = plt.figure(figsize=(fig_w, fig_h))
 
 ax_l = lpad / fig_w
 ax_b = 0.02
-ax_w = (n_actors * cell) / fig_w
-ax_h = (n_rows * cell) / fig_h
+ax_w = (n_actors * col_w) / fig_w
+ax_h = (n_rows * row_h) / fig_h
 
 ax = fig.add_axes([ax_l, ax_b, ax_w, ax_h])
 ax.set_xlim(-0.5, n_actors - 0.5)
 ax.set_ylim(n_rows - 0.5, -0.5)
-ax.set_aspect("equal")
 ax.axis("off")
 
 # Pass 1 — background patches (full width for every row)
