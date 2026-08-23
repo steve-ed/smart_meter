@@ -1,5 +1,7 @@
 # Smart Meter Analytics — Value-Added Features by User Type
 
+![Value Features Matrix](../data/value_features_matrix.png)
+
 ---
 
 ## Conventional BTL Landlords

@@ -178,7 +178,7 @@ A higher time constant means better heat retention. The app translates this into
 
 **Sub-features unlocked alongside this:**
 
-**13a — EPC performance gap:** compares your measured heat loss against what your Energy Performance Certificate predicts. UK research consistently finds that older properties lose 30–50% more heat than their EPC suggests. The app puts a pound figure on this gap — the extra annual heating cost from the shortfall.
+**13a — EPC performance gap:** compares your measured heat loss against what your Energy Performance Certificate predicts. UK Government research (DESNZ 2025) finds that lower-rated older properties typically use 20–48% *less* energy than their EPC predicts — SAP relies on age-band defaults that often assume worse fabric performance than the building delivers, and occupants of poorly-rated homes tend to under-heat due to cost (the prebound effect). The app puts a pound figure on this gap: for most older homes it will show the property out-performs its certificate; for others it may show the reverse. Either way, you have measured evidence rather than a modelled estimate.
 
 **13b — Living EPC:** your EPC band, updated monthly from real measurement rather than a one-off assessment that may be years old. If your band improves after a retrofit, you see it immediately.
 

@@ -3,10 +3,13 @@ import re
 import markdown
 from ebooklib import epub
 
-MD_PATH   = "docs/ValueFeatures.md"
-EPUB_PATH = "docs/ValueFeatures.epub"
+MD_PATH    = "docs/ValueFeatures.md"
+EPUB_PATH  = "docs/ValueFeatures.epub"
+MATRIX_PNG = "data/value_features_matrix.png"
 
 md_text = open(MD_PATH, encoding="utf-8").read()
+# Replace relative path with epub-internal path before markdown conversion
+md_text = md_text.replace("../data/value_features_matrix.png", "images/value_features_matrix.png")
 
 chapter_re = re.compile(r'^(## .+)$', re.MULTILINE)
 parts = chapter_re.split(md_text)
@@ -28,9 +31,21 @@ h2   { font-size: 1.4em; margin-top: 1.2em; border-bottom: 1px solid #ccc; paddi
 ul   { margin: 0.8em 0; padding-left: 1.4em; }
 li   { margin: 0.4em 0; }
 strong { font-weight: bold; }
+img    { max-width: 100%; height: auto; }
 """,
 )
 book.add_item(default_css)
+
+# Embed the matrix image
+with open(MATRIX_PNG, "rb") as f:
+    img_data = f.read()
+img_item = epub.EpubItem(
+    uid="value_features_matrix",
+    file_name="images/value_features_matrix.png",
+    media_type="image/png",
+    content=img_data,
+)
+book.add_item(img_item)
 
 chapters = []
 

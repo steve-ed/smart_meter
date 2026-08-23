@@ -130,7 +130,7 @@ After heating turns off (identifiable from the gas half-hourly drop to zero), tr
 
 ### 13a. EPC Enhancement — Measured vs Modelled Performance Gap
 
-Current EPCs are based on SAP (Standard Assessment Procedure) — a modelled estimate from construction type, not actual behaviour. The heat decay rate from service #13 gives a *measured* fabric heat loss coefficient (HLC) for that specific property. Comparing measured HLC against the SAP-predicted value quantifies the performance gap — many homes perform 30–50% worse than their EPC implies. This is actionable intelligence for both occupants and policymakers.
+Current EPCs are based on SAP (Standard Assessment Procedure) — a modelled estimate from construction type, not actual behaviour. The heat decay rate from service #13 gives a *measured* fabric heat loss coefficient (HLC) for that specific property. Comparing measured HLC against the SAP-predicted value quantifies the performance gap. UK Government research (DESNZ 2025) finds EPCs overpredict energy use by an average of 16%, widening to 48% for F/G-band homes — the prebound effect, where occupants of poorly-rated homes under-heat due to cost, and where SAP age-band defaults assume worse fabric than the building delivers. For a minority of properties the gap runs the other way. This is actionable intelligence for both occupants and policymakers.
 
 ### 13b. EPC Enhancement — Continuous / Dynamic EPC
 
