@@ -958,3 +958,31 @@ Establishing smart meter data sharing, installing an indoor temperature sensor, 
 | Radiator sizing for heat pump | Feature 4 radiator audit | Identify hidden electrification cost |
 
 The buyer's structural advantage is timing: all of this information is available before contracts are exchanged. A buyer who commissions independent pre-purchase assessment enters negotiation with the same quality of evidence the seller holds — or better, if the seller's pack was incomplete. The cost of a comprehensive pre-purchase energy survey is modest relative to the purchase price and the potential for a price reduction or the avoidance of a costly post-purchase surprise.
+
+---
+
+## Research References
+
+### EPC Performance Gap and Overprediction
+
+- DESNZ (2025). *EPC Accuracy Research*. UK Government. [GOV.UK](https://www.gov.uk/government/publications/energy-performance-certificate-epc-accuracy-research) — Government study finding EPCs overpredict energy use by an average of 16% for gas-heated homes, widening to 48% for F/G-band properties (the prebound effect). Primary source for Feature 13a performance gap claims.
+
+- Jenkins, D. & Sayfikar, M. (2025). *Energy performance certificate calculation methodologies across Europe and accommodating new performance indicators*. Building Services Engineering Research and Technology. [SAGE Journals](https://journals.sagepub.com/doi/10.1177/01436244241282076) — Cross-European comparison of EPC methodologies; identifies operational and dynamic EPC approaches in Denmark, Poland, and Slovenia as precedents for measured-data ratings.
+
+### Living EPC / Dynamic EPC — Academic Foundation
+
+- Chambers, J. (2017). *Developing a rapid, scalable method of thermal characterisation for UK dwellings using smart meter data*. PhD thesis, UCL. [UCL Discovery](https://discovery.ucl.ac.uk/id/eprint/10030678/) — Derives Heat Loss Coefficients for 7,529 dwellings from daily smart meter and weather data using grey-box modelling (the Deconstruct method). Mean HLC uncertainty of 15% for 63% of sites. Academic foundation for the HLC derivation underpinning Features 13 and 13b.
+
+- Chambers, J. et al. (2019). *Deconstruct: A scalable method of as-built heat power loss coefficient inference for UK dwellings using smart meter data*. Energy and Buildings. [ScienceDirect](https://www.sciencedirect.com/science/article/abs/pii/S0378778818314324) — Peer-reviewed publication of the Deconstruct method from the PhD above.
+
+- Lomas, K. et al. (2019). *A Domestic Operational Rating for UK homes: Concept, formulation and application*. Energy and Buildings. [ScienceDirect](https://www.sciencedirect.com/article/pii/S0378778819308990) — Loughborough University proposal for a rolling, smart-meter-derived energy performance rating (DOR) covering energy demand, GHG emissions, and energy cost. Directly analogous to Feature 13b under a different name.
+
+### SMETER Programme — Government-Funded Validation
+
+- Loughborough University / UCL / Leeds Beckett / Halton Housing (2022). *Smart Meter Enabled Thermal Efficiency Ratings (SMETER) Innovation Programme*. BEIS-funded (£4m). [Loughborough news release](https://www.lboro.ac.uk/news-events/news/2022/march/smarter-ways-to-make-your-home-more-efficient/) — Tested eight methods for deriving thermal efficiency ratings from smart meter data across 30 homes. Key finding: smart meter data can effectively measure thermal performance. Most directly relevant government-validated precedent for Features 13 and 13b.
+
+- Smart Energy Research Lab (SERL). *Domestic Operational Rating (DOR): Development, Programming and Testing*. [SERL project page](https://serl.ac.uk/projects/domestic-operational-rating-dor-development-programming-and-testing/) — Ongoing SERL project developing the DOR into a deployable rating system from smart meter data.
+
+### Dynamic EPC — European Research
+
+- E-DYCE Project (EU Horizon). *Dynamic perspective of Energy Performance Certification*. [E-DYCE homepage](https://edyce.eu/) — EU-funded project developing operational and hybrid dynamic EPCs combining monitored and modelled data across European member states. Provides policy-level international validation that the living EPC concept is technically sound and regulatorily feasible.
