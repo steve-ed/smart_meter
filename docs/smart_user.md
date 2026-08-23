@@ -741,7 +741,7 @@ The features described in this document are written primarily for owner-occupier
 
 **Indoor environment report** — The most immediately relevant commercial offering for landlords ahead of the anticipated minimum EPC C requirement for the private rented sector. CO₂, humidity, temperature, and CO readings across a multi-room property address Awaab's Law obligations (damp and mould duty of care), CO detector requirements, and ventilation failures that a standard EPC does not capture. Packaged as a landlord compliance report, this is a distinct chargeable service from the EPC itself.
 
-**Living EPC — Feature 13b** — Monthly-updated EPC band derived from real measurement rather than a one-off certificate. Landlords managing a portfolio can track which properties are drifting toward non-compliance before a formal reassessment triggers enforcement action. A portfolio dashboard showing band trends across multiple properties would be a natural extension.
+**Living EPC — Feature 13b** — Monthly-updated EPC band derived from real measurement rather than a one-off certificate. Landlords managing a portfolio can track which properties are at risk of failing to reach band C before the October 2030 MEES deadline — and plan upgrade spend before the deadline forces an emergency response. A portfolio dashboard showing band trends across multiple properties would be a natural extension.
 
 ---
 
