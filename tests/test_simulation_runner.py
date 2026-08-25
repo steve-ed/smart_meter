@@ -16,6 +16,7 @@ from simulation_runner import (
     _flatten_float,
     load_weather,
     forward_simulate,
+    forward_simulate_two_zone,
     run_simulation,
 )
 from energy_model import create_dwelling, DwellingParams
@@ -403,6 +404,90 @@ def test_internal_gains_fraction_zero_passes_no_gains(tmp_path):
     )
     _, gas_ref, _ = forward_simulate(dp_default, dates, weather_obj, internal_gains=None)
     assert result.gas_kwh == gas_ref
+
+
+# --- two-zone model tests ---
+
+def _two_zone_dp(**overrides):
+    defaults = dict(zone2_floor_area_m2=20.0, inter_zone_conductance_w_per_k=30.0, zone2_t_initial=18.0)
+    defaults.update(overrides)
+    return create_dwelling("1970s-semi", **defaults)
+
+
+def test_two_zone_returns_four_series():
+    dp = _two_zone_dp()
+    dates = [date(2024, 1, 15)]
+    weather = _make_weather(dates, temp_c=5.0)
+    z1, gas, boiler, z2 = forward_simulate_two_zone(dp, dates, weather)
+    assert len(z1) == 48
+    assert len(z2) == 48
+    assert len(gas) == 48
+    assert len(boiler) == 48
+
+
+def test_two_zone_z2_warmer_than_outdoor_in_winter():
+    """Zone 2 receives heat from zone 1 — must stay above outdoor temp."""
+    dp = _two_zone_dp()
+    dates = [date(2024, 1, 15)]
+    weather = _make_weather(dates, temp_c=2.0)
+    _, _, _, z2 = forward_simulate_two_zone(dp, dates, weather)
+    assert all(t >= 2.0 - 1e-6 for t in z2.values())
+
+
+def test_two_zone_z2_cooler_than_z1_in_winter():
+    """Unheated bedroom must stay below heated living zone in winter."""
+    dp = _two_zone_dp(t_setpoint_schedule=DEFAULT_SETPOINT_SCHEDULE)
+    dates = [date(2024, 1, 15)]
+    weather = _make_weather(dates, temp_c=3.0)
+    z1, _, _, z2 = forward_simulate_two_zone(dp, dates, weather)
+    avg_z1 = sum(z1.values()) / len(z1)
+    avg_z2 = sum(z2.values()) / len(z2)
+    assert avg_z2 < avg_z1
+
+
+def test_two_zone_z1_boiler_fires_in_winter():
+    dp = _two_zone_dp()
+    dates = [date(2024, 1, 15)]
+    weather = _make_weather(dates, temp_c=5.0)
+    _, _, boiler, _ = forward_simulate_two_zone(dp, dates, weather)
+    assert any(boiler.values())
+
+
+def test_two_zone_gas_at_least_base_load():
+    dp = _two_zone_dp()
+    dates = [date(2024, 1, 15)]
+    weather = _make_weather(dates, temp_c=5.0)
+    _, gas, _, _ = forward_simulate_two_zone(dp, dates, weather)
+    for kwh in gas.values():
+        assert kwh >= dp.base_load_kwh_per_period - 1e-9
+
+
+def test_two_zone_z2_approaches_z1_with_high_conductance():
+    """High inter-zone conductance should equalise zone temperatures."""
+    dp_tight = _two_zone_dp(inter_zone_conductance_w_per_k=500.0)
+    dp_loose = _two_zone_dp(inter_zone_conductance_w_per_k=5.0)
+    dates = [date(2024, 1, 15)]
+    weather = _make_weather(dates, temp_c=3.0)
+    z1_t, _, _, z2_t = forward_simulate_two_zone(dp_tight, dates, weather)
+    z1_l, _, _, z2_l = forward_simulate_two_zone(dp_loose, dates, weather)
+    gap_tight = sum(abs(z1_t[ts] - z2_t[ts]) for ts in z1_t) / 48
+    gap_loose = sum(abs(z1_l[ts] - z2_l[ts]) for ts in z1_l) / 48
+    assert gap_tight < gap_loose
+
+
+def test_run_simulation_two_zone_populates_z2(tmp_path):
+    dp = _two_zone_dp()
+    dates = _winter_week()
+    result = run_simulation(dp, dates, weather_path=_write_weather_csv(tmp_path, dates))
+    assert result.indoor_temp_c_z2 is not None
+    assert len(result.indoor_temp_c_z2) == len(dates) * 48
+
+
+def test_run_simulation_single_zone_z2_is_none(tmp_path):
+    dp = create_dwelling("1970s-semi")   # zone2_floor_area_m2 defaults to 0.0
+    dates = _winter_week()
+    result = run_simulation(dp, dates, weather_path=_write_weather_csv(tmp_path, dates))
+    assert result.indoor_temp_c_z2 is None
 
 
 def test_invalid_schedule_length_raises():

@@ -36,9 +36,12 @@ _BASE = METER_PARAMS[6]
 DWELLING = DwellingParams(
     **{
         **dataclasses.asdict(_BASE),
-        "t_setpoint_schedule":   DEFAULT_SETPOINT_SCHEDULE,
-        "boiler_max_kw":         24.0,
-        "internal_gains_fraction": 1.0,
+        "t_setpoint_schedule":            DEFAULT_SETPOINT_SCHEDULE,
+        "boiler_max_kw":                  24.0,
+        "internal_gains_fraction":        1.0,
+        "zone2_floor_area_m2":            22.0,   # one bedroom, ~25 % of 88 m²
+        "inter_zone_conductance_w_per_k": 30.0,   # ceiling + stairwell coupling
+        "zone2_t_initial":                18.0,
     }
 )
 
@@ -69,7 +72,11 @@ FIELDS = [
     "electricity_kwh_obs",
     "gas_kwh_obs",
     "indoor_temp_c_obs",
-    # Kalman-smoothed temperatures
+    # Zone 2 (bedroom) — ground truth, observed, smoothed
+    "indoor_temp_c_z2",
+    "indoor_temp_c_z2_obs",
+    "indoor_temp_c_z2_smooth",
+    # Kalman-smoothed zone 1 temperatures
     "outdoor_temp_c_smooth",
     "indoor_temp_c_smooth",
 ]
@@ -100,14 +107,15 @@ def main() -> None:
     gt_rows = []
     for ts in result.timestamps:
         gt_rows.append({
-            "timestamp":       ts,
-            "outdoor_temp_c":  round(result.outdoor_temp_c.get(ts, float("nan")), 2),
-            "wind_speed_ms":   round(result.wind_speed_ms.get(ts, float("nan")), 2),
-            "occupancy":       bool(result.occupancy[ts]),
-            "electricity_kwh": round(result.electricity_kwh[ts], 6),
-            "gas_kwh":         round(result.gas_kwh[ts], 6),
-            "indoor_temp_c":   result.indoor_temp_c[ts],
-            "boiler_on":       bool(result.boiler_on[ts]),
+            "timestamp":        ts,
+            "outdoor_temp_c":   round(result.outdoor_temp_c.get(ts, float("nan")), 2),
+            "wind_speed_ms":    round(result.wind_speed_ms.get(ts, float("nan")), 2),
+            "occupancy":        bool(result.occupancy[ts]),
+            "electricity_kwh":  round(result.electricity_kwh[ts], 6),
+            "gas_kwh":          round(result.gas_kwh[ts], 6),
+            "indoor_temp_c":    result.indoor_temp_c[ts],
+            "boiler_on":        bool(result.boiler_on[ts]),
+            "indoor_temp_c_z2": result.indoor_temp_c_z2[ts],
         })
 
     obs_rows    = apply_noise(gt_rows, SensorNoiseModel(), seed=SEED)
@@ -118,22 +126,25 @@ def main() -> None:
         writer.writeheader()
         for gt, smooth in zip(gt_rows, smooth_rows):
             writer.writerow({
-                "timestamp":             gt["timestamp"],
-                "outdoor_temp_c":        gt["outdoor_temp_c"],
-                "wind_speed_ms":         gt["wind_speed_ms"],
-                "occupancy":             int(gt["occupancy"]),
-                "electricity_kwh":       gt["electricity_kwh"],
-                "gas_kwh":               gt["gas_kwh"],
-                "indoor_temp_c":         gt["indoor_temp_c"],
-                "boiler_on":             int(gt["boiler_on"]),
-                "outdoor_temp_c_obs":    smooth["outdoor_temp_c"],
-                "wind_speed_ms_obs":     smooth["wind_speed_ms"],
-                "occupancy_obs":         int(smooth["occupancy"]),
-                "electricity_kwh_obs":   smooth["electricity_kwh"],
-                "gas_kwh_obs":           smooth["gas_kwh"],
-                "indoor_temp_c_obs":     smooth["indoor_temp_c"],
-                "outdoor_temp_c_smooth": smooth["outdoor_temp_c_smooth"],
-                "indoor_temp_c_smooth":  smooth["indoor_temp_c_smooth"],
+                "timestamp":              gt["timestamp"],
+                "outdoor_temp_c":         gt["outdoor_temp_c"],
+                "wind_speed_ms":          gt["wind_speed_ms"],
+                "occupancy":              int(gt["occupancy"]),
+                "electricity_kwh":        gt["electricity_kwh"],
+                "gas_kwh":                gt["gas_kwh"],
+                "indoor_temp_c":          gt["indoor_temp_c"],
+                "boiler_on":              int(gt["boiler_on"]),
+                "outdoor_temp_c_obs":     smooth["outdoor_temp_c"],
+                "wind_speed_ms_obs":      smooth["wind_speed_ms"],
+                "occupancy_obs":          int(smooth["occupancy"]),
+                "electricity_kwh_obs":    smooth["electricity_kwh"],
+                "gas_kwh_obs":            smooth["gas_kwh"],
+                "indoor_temp_c_obs":      smooth["indoor_temp_c"],
+                "indoor_temp_c_z2":       gt["indoor_temp_c_z2"],
+                "indoor_temp_c_z2_obs":   smooth["indoor_temp_c_z2"],
+                "indoor_temp_c_z2_smooth":smooth["indoor_temp_c_z2_smooth"],
+                "outdoor_temp_c_smooth":  smooth["outdoor_temp_c_smooth"],
+                "indoor_temp_c_smooth":   smooth["indoor_temp_c_smooth"],
             })
 
     total_elec = sum(result.electricity_kwh.values())
@@ -149,17 +160,26 @@ def main() -> None:
 
 def _run_tier4_checks(output_path: str, dwelling: DwellingParams) -> None:
     """Run tier 4 EPC estimation using sensor observations and report accuracy."""
-    indoor: dict[str, dict] = {}
+    indoor_z1: dict[str, dict] = {}
+    indoor_z2: dict[str, dict] = {}
     with open(output_path, newline="") as f:
         for row in csv.DictReader(f):
             ts = row["timestamp"]
             h, m = int(ts[11:13]), int(ts[14:16])
-            indoor[ts] = {
+            period = h * 2 + m // 30
+            indoor_z1[ts] = {
                 "temp_c":    float(row["indoor_temp_c_smooth"]),
                 "boiler_on": int(row["boiler_on"]),
                 "outdoor_c": float(row["outdoor_temp_c_smooth"]),
-                "period":    h * 2 + m // 30,
+                "period":    period,
             }
+            if "indoor_temp_c_z2_smooth" in row:
+                indoor_z2[ts] = {
+                    "temp_c":    float(row["indoor_temp_c_z2_smooth"]),
+                    "boiler_on": int(row["boiler_on"]),
+                    "outdoor_c": float(row["outdoor_temp_c_smooth"]),
+                    "period":    period,
+                }
 
     dq         = derived_quantities(dwelling)
     true_htc   = dq["htc"]
@@ -170,19 +190,26 @@ def _run_tier4_checks(output_path: str, dwelling: DwellingParams) -> None:
     print(f"\n--- Tier 4 validation (Kalman-smoothed observations as input) ---")
     print(f"  True HTC : {true_htc:.1f} W/K    True tau : {true_tau:.1f} h    True band : {true_band['band']}")
 
-    for label, overnight in (("all-hours", False), ("overnight", True)):
+    configs = [
+        ("z1 all-hrs", indoor_z1, False),
+        ("z1 overngt", indoor_z1, True),
+    ]
+    if indoor_z2:
+        configs.append(("z2 overngt", indoor_z2, True))
+
+    for label, indoor, overnight in configs:
         events  = find_free_cooling_events(indoor, overnight_only=overnight)
         fits    = [fit_tau(ev) for ev in events]
         good    = [f for f in fits if f]
         tau_agg = aggregate_tau(good)
         if tau_agg is None:
-            print(f"  [{label:<9}]  insufficient events ({len(good)} good fits)")
+            print(f"  [{label}]  insufficient events ({len(good)} good fits)")
             continue
         hlc     = calculate_hlc(tau_agg, floor_area, "semi", "1945_1980")
         band    = hlc_to_epc_band(hlc["hlc_per_m2"])
         tau_err = (tau_agg["tau_hours"] - true_tau) / true_tau * 100
         hlc_err = (hlc["hlc_w_per_k"]  - true_htc) / true_htc * 100
-        print(f"  [{label:<9}]  events={len(good)}"
+        print(f"  [{label}]  events={len(good)}"
               f"  tau={tau_agg['tau_hours']:.1f}h ({tau_err:+.1f}%)"
               f"  HLC={hlc['hlc_w_per_k']:.1f} W/K ({hlc_err:+.1f}%)"
               f"  band={band['band']}  conf={hlc['confidence']}")

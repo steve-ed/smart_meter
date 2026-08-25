@@ -35,6 +35,7 @@ class SimulationResult:
     indoor_temp_c: dict[str, float]
     boiler_on: dict[str, bool]
     solar_kwh: dict[str, float] | None
+    indoor_temp_c_z2: dict[str, float] | None = None
 
 
 def _ts(d: date, slot: int) -> str:
@@ -179,6 +180,86 @@ def forward_simulate(
     return indoor_temp, gas_out, boiler_out
 
 
+def forward_simulate_two_zone(
+    dp: DwellingParams,
+    dates: list[date],
+    weather: WeatherSeries,
+    internal_gains: dict[str, float] | None = None,
+) -> tuple[dict[str, float], dict[str, float], dict[str, bool], dict[str, float]]:
+    """
+    Two-zone forward simulation using explicit Euler integration.
+
+    Zone 1 (living zone): heated by boiler, receives appliance internal gains.
+    Zone 2 (bedroom):     unheated, coupled to zone 1 via inter-zone conductance.
+
+    The total HTC and thermal capacitance are split proportionally by floor area.
+    With dt/τ ≈ 0.5/65 ≈ 0.008 the Euler truncation error is negligible.
+
+    Returns (indoor_temp_z1, gas_kwh, boiler_on, indoor_temp_z2).
+    """
+    dq = derived_quantities(dp)
+    total_htc = dq["htc"]
+
+    z2_area = dp.zone2_floor_area_m2
+    z1_area = dp.total_floor_area_m2 - z2_area
+    z2_frac = z2_area / dp.total_floor_area_m2
+
+    HTC1 = (1.0 - z2_frac) * total_htc
+    HTC2 = z2_frac * total_htc
+    C1   = dp.kappa * z1_area       # Wh/K
+    C2   = dp.kappa * z2_area       # Wh/K
+    G    = dp.inter_zone_conductance_w_per_k
+    dt   = 0.5                      # hours per slot
+
+    setpoint_sched = dp.t_setpoint_schedule
+    if setpoint_sched is not None and len(setpoint_sched) != 48:
+        raise ValueError(
+            f"t_setpoint_schedule must have 48 values, got {len(setpoint_sched)}"
+        )
+
+    indoor_z1: dict[str, float] = {}
+    indoor_z2: dict[str, float] = {}
+    gas_out:   dict[str, float] = {}
+    boiler_out: dict[str, bool] = {}
+
+    T1 = dp.t_setpoint
+    T2 = dp.zone2_t_initial
+
+    for d in dates:
+        in_heating = d.month in _HEATING_MONTHS
+        for slot in range(48):
+            ts      = _ts(d, slot)
+            T_out   = weather.outdoor_temp_c.get(ts, T1)
+            setpoint = setpoint_sched[slot] if setpoint_sched is not None else dp.t_setpoint
+            Q1_wh   = (internal_gains.get(ts, 0.0) if internal_gains else 0.0) * 1000.0
+
+            # Explicit Euler step — use current T1, T2 for both zones
+            T1_pred = T1 + dt * (HTC1*(T_out - T1) + G*(T2 - T1)) / C1 + Q1_wh / C1
+            T2_new  = T2 + dt * (HTC2*(T_out - T2) + G*(T1 - T2)) / C2
+
+            if in_heating and T1_pred < setpoint:
+                heat_needed_wh  = (setpoint - T1_pred) * C1
+                gas_heat_kwh    = heat_needed_wh / (dp.heating_efficiency * 1000.0)
+                if dp.boiler_max_kw > 0.0:
+                    gas_heat_kwh = min(gas_heat_kwh, dp.boiler_max_kw * 0.5)
+                heat_delivered_wh = gas_heat_kwh * dp.heating_efficiency * 1000.0
+                T1       = min(T1_pred + heat_delivered_wh / C1, setpoint)
+                boiler_on = True
+            else:
+                T1        = max(T1_pred, T_out)
+                gas_heat_kwh = 0.0
+                boiler_on = False
+
+            T2 = max(T2_new, T_out)
+
+            indoor_z1[ts]  = round(T1, 3)
+            indoor_z2[ts]  = round(T2, 3)
+            gas_out[ts]    = gas_heat_kwh + dp.base_load_kwh_per_period
+            boiler_out[ts] = boiler_on
+
+    return indoor_z1, gas_out, boiler_out, indoor_z2
+
+
 def run_simulation(
     dp: DwellingParams,
     dates: list[date],
@@ -209,7 +290,13 @@ def run_simulation(
     gains: dict[str, float] | None = None
     if dp.internal_gains_fraction > 0.0:
         gains = {ts: v * dp.internal_gains_fraction for ts, v in elec_flat.items()}
-    indoor_temp, gas, boiler_on = forward_simulate(dp, dates, weather, internal_gains=gains)
+    indoor_temp_z2: dict[str, float] | None = None
+    if dp.zone2_floor_area_m2 > 0.0:
+        indoor_temp, gas, boiler_on, indoor_temp_z2 = forward_simulate_two_zone(
+            dp, dates, weather, internal_gains=gains
+        )
+    else:
+        indoor_temp, gas, boiler_on = forward_simulate(dp, dates, weather, internal_gains=gains)
     solar_by_date = generate_solar_profile(
         dp, lat=lat, lon=lon, year=pvgis_year, cache_dir=pvgis_cache_dir,
     )
@@ -229,4 +316,5 @@ def run_simulation(
         indoor_temp_c=indoor_temp,
         boiler_on=boiler_on,
         solar_kwh=solar_flat,
+        indoor_temp_c_z2=indoor_temp_z2,
     )

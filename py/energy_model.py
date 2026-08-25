@@ -69,6 +69,11 @@ class DwellingParams:
     occupant_count: int = 2
     occupancy_source: str = "synthetic"
 
+    # ---- Zone 2 (optional — 0.0 disables, reverts to single-zone model) ----
+    zone2_floor_area_m2: float = 0.0               # bedroom / first-floor zone area
+    inter_zone_conductance_w_per_k: float = 30.0   # ceiling/stairwell coupling
+    zone2_t_initial: float = 18.0                  # bedroom start temperature (°C)
+
     # ---- Metadata ----
     label: str = ""
     archetype_id: str = ""

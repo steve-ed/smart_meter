@@ -150,7 +150,7 @@ def apply_noise(
     for row in rows:
         ot = row["outdoor_temp_c"]
         ws = row["wind_speed_ms"]
-        out.append({
+        noisy = {
             "timestamp":       row["timestamp"],
             "outdoor_temp_c":  (
                 _add_temp_noise(ot, model.outdoor_temp, rng)
@@ -165,7 +165,12 @@ def apply_noise(
             "gas_kwh":         _add_energy_noise(row["gas_kwh"], model.gas, rng),
             "indoor_temp_c":   _add_temp_noise(row["indoor_temp_c"], model.indoor_temp, rng),
             "boiler_on":       row["boiler_on"],
-        })
+        }
+        if "indoor_temp_c_z2" in row:
+            noisy["indoor_temp_c_z2"] = _add_temp_noise(
+                row["indoor_temp_c_z2"], model.indoor_temp, rng
+            )
+        out.append(noisy)
     return out
 
 
@@ -250,7 +255,7 @@ def smooth_observations(
         process_sigma=outdoor_process_sigma,
         measurement_sigma=outdoor_measurement_sigma,
     )
-    return [
+    result = [
         {
             **r,
             "indoor_temp_c_smooth":  round(si, 3),
@@ -258,6 +263,17 @@ def smooth_observations(
         }
         for r, si, so in zip(rows, indoor_smooth, outdoor_smooth)
     ]
+    if rows and "indoor_temp_c_z2" in rows[0]:
+        z2_smooth = kalman_smooth_series(
+            [r["indoor_temp_c_z2"] for r in rows],
+            process_sigma=indoor_process_sigma,
+            measurement_sigma=indoor_measurement_sigma,
+        )
+        result = [
+            {**r, "indoor_temp_c_z2_smooth": round(sz, 3)}
+            for r, sz in zip(result, z2_smooth)
+        ]
+    return result
 
 
 def write_observations(rows: list[dict], path: str) -> None:
