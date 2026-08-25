@@ -85,6 +85,7 @@ directly via the energy balance.
 | 6 months (Jan–Jun) | 8,736 | 423 | 71.1 | +0.1% | B ✓ | 0.204 | 0.050 |
 | 1 month (Jan) | 1,488 | 149 | 71.0 | −0.0% | B ✓ | 0.197 | 0.051 |
 | 1 month (Jul) | 1,488 | 0 | 62.2 | −12.4% | B ✓ | 0.280 | — |
+| 2 weeks (Jan) | 672 | 76 | 72.3 | +1.8% | B ✓ | 0.205 | 0.263 |
 | 1 week (Jan) | 336 | 44 | 74.0 | +4.2% | B ✓ | 0.198 | 0.268 |
 | 1 week (Jul) | 336 | 0 | 39.9 | −43.8% | **A ✗** | 0.404 | — |
 
@@ -146,6 +147,7 @@ constraint.
 | 6 months (Jan–Jun) | 8,736 | 423 | +0.1% | 71.1 | +0.1% | +0.1% | −0.3% | B ✓ |
 | 1 month (Jan) | 1,488 | 149 | −0.0% | 71.0 | −0.0% | −0.0% | +0.0% | B ✓ |
 | 1 month (Jul) | 1,488 | 0 | −12.4% | 61.0 | −14.1% | −12.7% | +25.3% | B ✓ |
+| 2 weeks (Jan) | 672 | 76 | +1.8% | 74.4 | +4.8% | +3.4% | −4.7% | B ✓ |
 | 1 week (Jan) | 336 | 44 | +4.2% | 88.9 | +25.2% | +13.9% | −13.7% | B ✓ |
 | 1 week (Jul) | 336 | 0 | −43.8% | 53.4 | −24.8% | −40.3% | −36.0% | **A ✗** |
 
@@ -194,7 +196,7 @@ without heating-driven excitation.
 | Heating slots | 2,164 | 657 |
 | G/HTC ratio | 13% | 42% |
 | 1D full-year err | +0.1% | +0.1% |
-| Min window (correct band) | 1 week (Jan or Jul) | 1 week (Jan only) |
+| Min window (correct band) | 1 week (any season) | 2 weeks (Jan only) |
 | Summer 1-week reliable? | Yes (+4.7%, band F) | No (−43.8%, band A) |
 | 2D G full-year err | −1.3% | −0.3% |
 

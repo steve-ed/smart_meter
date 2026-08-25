@@ -180,6 +180,7 @@ def _run_window_table(output_path: str, dwelling: DwellingParams) -> None:
         ("6 months (Jan–Jun)", "2024-01-01", "2024-06-30"),
         ("1 month  (Jan)",     "2024-01-01", "2024-01-31"),
         ("1 month  (Jul)",     "2024-07-01", "2024-07-31"),
+        ("2 weeks  (Jan)",     "2024-01-08", "2024-01-21"),
         ("1 week   (Jan)",     "2024-01-08", "2024-01-14"),
         ("1 week   (Jul)",     "2024-07-08", "2024-07-14"),
     ]
