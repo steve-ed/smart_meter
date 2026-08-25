@@ -13,7 +13,7 @@ def _default_weekday() -> list[str]:
     for slot in range(48):
         if slot < 14:     # 00:00–06:30  sleep
             schedule.append("sleep")
-        elif slot < 17:   # 07:00–08:00  home (getting ready)
+        elif slot < 17:   # 07:00–08:30  home (getting ready)
             schedule.append("home")
         elif slot < 35:   # 08:30–17:00  away
             schedule.append("away")
@@ -54,6 +54,9 @@ def generate_occupancy(
     'away' maps to False. Weekend = weekday() >= 5.
 
     Returns dict[date, list[48 bool]].
+
+    The seed parameter is accepted for interface consistency with appliance_model
+    but has no effect; the occupancy signal is fully deterministic from the schedule.
     """
     result: dict[date, list[bool]] = {}
     for d in dates:
