@@ -1,6 +1,6 @@
 import pytest
 from datetime import date, timedelta
-from occupancy_model import OccupancySchedule, DEFAULT_SCHEDULE, generate_occupancy
+from occupancy_model import OccupancySchedule, DEFAULT_SCHEDULE, generate_occupancy, generate_occupancy_states
 
 
 def test_occupancy_schedule_stores_fields():
@@ -61,6 +61,35 @@ def test_generate_occupancy_reproducible():
     dates = [date(2020, 1, 6)]
     assert (generate_occupancy(DEFAULT_SCHEDULE, dates, seed=42) ==
             generate_occupancy(DEFAULT_SCHEDULE, dates, seed=42))
+
+
+def test_generate_occupancy_states_returns_strings():
+    monday = date(2020, 1, 6)
+    states = generate_occupancy_states(DEFAULT_SCHEDULE, [monday])
+    assert len(states[monday]) == 48
+    assert all(s in ("home", "away", "sleep") for s in states[monday])
+
+
+def test_generate_occupancy_states_sleep_slots():
+    monday = date(2020, 1, 6)
+    states = generate_occupancy_states(DEFAULT_SCHEDULE, [monday])
+    assert states[monday][0] == "sleep"   # 00:00
+
+
+def test_generate_occupancy_states_away_slots():
+    monday = date(2020, 1, 6)
+    states = generate_occupancy_states(DEFAULT_SCHEDULE, [monday])
+    assert states[monday][17] == "away"   # 08:30
+
+
+def test_generate_occupancy_states_consistent_with_bool():
+    """generate_occupancy_states and generate_occupancy must agree on home/away."""
+    monday = date(2020, 1, 6)
+    states = generate_occupancy_states(DEFAULT_SCHEDULE, [monday])
+    bools = generate_occupancy(DEFAULT_SCHEDULE, [monday])
+    for i, (s, b) in enumerate(zip(states[monday], bools[monday])):
+        expected_bool = s in ("home", "sleep")
+        assert b == expected_bool, f"Slot {i}: state={s!r} but bool={b}"
 
 
 def test_generate_occupancy_weekday_home_fraction_within_2pp():

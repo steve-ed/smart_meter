@@ -15,6 +15,7 @@ class ApplianceParams:
     seasonal_factor: float = 1.0  # multiplier on daily_frequency for summer (Jun–Aug)
     occupancy_correlated: bool = True    # events only during home/sleep slots
     scales_with_occupants: bool = False  # multiply daily_frequency by occupant_count
+    awake_only: bool = False             # if True, restrict further to 'home' slots (exclude 'sleep')
 
 
 DEFAULT_APPLIANCES: dict[str, ApplianceParams] = {
@@ -22,6 +23,7 @@ DEFAULT_APPLIANCES: dict[str, ApplianceParams] = {
         rated_power_w=2500.0,
         event_duration_min=30.0,
         daily_frequency=3.0,
+        awake_only=False,   # hot water fires overnight (Economy 7 pattern)
     ),
     "fridge": ApplianceParams(
         rated_power_w=150.0,
@@ -34,27 +36,32 @@ DEFAULT_APPLIANCES: dict[str, ApplianceParams] = {
         rated_power_w=2500.0,
         event_duration_min=45.0,
         daily_frequency=1.5,
+        awake_only=True,
     ),
     "kettle": ApplianceParams(
         rated_power_w=2500.0,
         event_duration_min=3.0,
         daily_frequency=6.0,
+        awake_only=True,
     ),
     "washing_machine": ApplianceParams(
         rated_power_w=2000.0,
         event_duration_min=75.0,
         daily_frequency=0.7,
+        awake_only=True,
     ),
     "dryer": ApplianceParams(
         rated_power_w=3000.0,
         event_duration_min=52.0,
         daily_frequency=0.4,
+        awake_only=True,
     ),
     "shower": ApplianceParams(
         rated_power_w=9000.0,
         event_duration_min=7.0,
         daily_frequency=1.0,
         scales_with_occupants=True,
+        awake_only=True,
     ),
 }
 
@@ -63,7 +70,7 @@ def generate_appliance_signal(
     appliance_id: str,
     params: ApplianceParams,
     dates: list[date],
-    occupancy: dict[date, list[bool]],
+    occupancy: dict[date, list[str]],
     seed: int = 42,
     occupant_count: int = 2,
 ) -> dict[date, list[float]]:
@@ -91,8 +98,13 @@ def generate_appliance_signal(
         if params.scales_with_occupants:
             freq *= occupant_count
 
-        occ = occupancy.get(d, [True] * 48)
-        available = [i for i in range(48) if not params.occupancy_correlated or occ[i]]
+        occ = occupancy.get(d, ["home"] * 48)
+        if not params.occupancy_correlated:
+            available = list(range(48))
+        elif params.awake_only:
+            available = [i for i in range(48) if occ[i] == "home"]
+        else:
+            available = [i for i in range(48) if occ[i] in ("home", "sleep")]
 
         if not available:
             result[d] = slots
@@ -125,7 +137,7 @@ def generate_appliance_signal(
 def generate_electricity_profile(
     appliances: dict[str, ApplianceParams],
     dates: list[date],
-    occupancy: dict[date, list[bool]],
+    occupancy: dict[date, list[str]],
     seed: int = 42,
     occupant_count: int = 2,
 ) -> dict[date, list[float]]:

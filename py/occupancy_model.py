@@ -42,6 +42,26 @@ DEFAULT_SCHEDULE = OccupancySchedule(
 )
 
 
+def generate_occupancy_states(
+    schedule: OccupancySchedule,
+    dates: list[date],
+    seed: int = 42,
+) -> dict[date, list[str]]:
+    """
+    Generate deterministic half-hourly occupancy states ('home', 'away', 'sleep').
+
+    Returns dict[date, list[48 str]].
+
+    The seed parameter is accepted for interface consistency but has no effect;
+    the signal is fully deterministic from the schedule.
+    """
+    result: dict[date, list[str]] = {}
+    for d in dates:
+        template = schedule.weekend if d.weekday() >= 5 else schedule.weekday
+        result[d] = list(template)
+    return result
+
+
 def generate_occupancy(
     schedule: OccupancySchedule,
     dates: list[date],
@@ -58,8 +78,5 @@ def generate_occupancy(
     The seed parameter is accepted for interface consistency with appliance_model
     but has no effect; the occupancy signal is fully deterministic from the schedule.
     """
-    result: dict[date, list[bool]] = {}
-    for d in dates:
-        template = schedule.weekend if d.weekday() >= 5 else schedule.weekday
-        result[d] = [s in ("home", "sleep") for s in template]
-    return result
+    states = generate_occupancy_states(schedule, dates, seed=seed)
+    return {d: [s in ("home", "sleep") for s in slots] for d, slots in states.items()}

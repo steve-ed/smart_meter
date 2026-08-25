@@ -11,7 +11,7 @@ from datetime import date
 
 from energy_model import DwellingParams, derived_quantities
 from home_model import decay_step
-from occupancy_model import DEFAULT_SCHEDULE, OccupancySchedule, generate_occupancy
+from occupancy_model import DEFAULT_SCHEDULE, OccupancySchedule, generate_occupancy, generate_occupancy_states
 from appliance_model import DEFAULT_APPLIANCES, ApplianceParams, generate_electricity_profile
 from solar_model import generate_solar_profile
 
@@ -160,9 +160,11 @@ def run_simulation(
     timestamp strings, one per half-hour slot.
     """
     weather = load_weather(dates, weather_path)
-    occupancy_by_date = generate_occupancy(schedule, dates, seed=seed)
+    occupancy_states = generate_occupancy_states(schedule, dates, seed=seed)
+    occupancy_bool = {d: [s in ("home", "sleep") for s in slots]
+                      for d, slots in occupancy_states.items()}
     elec_by_date = generate_electricity_profile(
-        appliances, dates, occupancy_by_date,
+        appliances, dates, occupancy_states,
         seed=seed, occupant_count=dp.occupant_count,
     )
     indoor_temp, gas, boiler_on = forward_simulate(dp, dates, weather)
@@ -179,7 +181,7 @@ def run_simulation(
         timestamps=timestamps,
         outdoor_temp_c=weather.outdoor_temp_c,
         wind_speed_ms=weather.wind_speed_ms,
-        occupancy=_flatten_bool(occupancy_by_date, dates),
+        occupancy=_flatten_bool(occupancy_bool, dates),
         electricity_kwh=_flatten_float(elec_by_date, dates),
         gas_kwh=gas,
         indoor_temp_c=indoor_temp,

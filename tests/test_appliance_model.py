@@ -16,6 +16,7 @@ def test_appliance_params_stores_all_fields():
         seasonal_factor=1.1,
         occupancy_correlated=True,
         scales_with_occupants=False,
+        awake_only=True,
     )
     assert p.rated_power_w == 2500.0
     assert p.event_duration_min == 3.0
@@ -23,6 +24,7 @@ def test_appliance_params_stores_all_fields():
     assert p.seasonal_factor == 1.1
     assert p.occupancy_correlated is True
     assert p.scales_with_occupants is False
+    assert p.awake_only is True
 
 
 def test_appliance_params_defaults():
@@ -30,6 +32,7 @@ def test_appliance_params_defaults():
     assert p.seasonal_factor == 1.0
     assert p.occupancy_correlated is True
     assert p.scales_with_occupants is False
+    assert p.awake_only is False
 
 
 def test_default_appliances_has_all_required():
@@ -68,7 +71,7 @@ def test_all_rated_powers_positive():
 
 def test_generate_appliance_signal_structure():
     dates = [date(2020, 1, 1)]
-    occupancy = {date(2020, 1, 1): [True] * 48}
+    occupancy = {date(2020, 1, 1): ["home"] * 48}
     result = generate_appliance_signal(
         "kettle", DEFAULT_APPLIANCES["kettle"], dates, occupancy
     )
@@ -85,7 +88,7 @@ def test_fridge_daily_energy_fidelity():
     expected = params.rated_power_w / 1000.0 * params.event_duration_min / 60.0 * params.daily_frequency
 
     dates = [date(2020, 1, i) for i in range(1, 8)]
-    occupancy = {d: [True] * 48 for d in dates}
+    occupancy = {d: ["home"] * 48 for d in dates}
     result = generate_appliance_signal("fridge", params, dates, occupancy)
 
     avg_daily = sum(sum(result[d]) for d in dates) / len(dates)
@@ -97,7 +100,7 @@ def test_fridge_summer_energy_uplift():
     params = DEFAULT_APPLIANCES["fridge"]
     winter = [date(2020, 1, i) for i in range(1, 8)]
     summer = [date(2020, 7, i) for i in range(1, 8)]
-    occ = {d: [True] * 48 for d in winter + summer}
+    occ = {d: ["home"] * 48 for d in winter + summer}
 
     win_result = generate_appliance_signal("fridge", params, winter, occ)
     sum_result = generate_appliance_signal("fridge", params, summer, occ)
@@ -114,7 +117,7 @@ def test_kettle_daily_energy_fidelity():
     expected = params.rated_power_w / 1000.0 * params.event_duration_min / 60.0 * params.daily_frequency
 
     dates = [date(2020, 1, i) for i in range(1, 8)]
-    occupancy = {d: [True] * 48 for d in dates}
+    occupancy = {d: ["home"] * 48 for d in dates}
     result = generate_appliance_signal("kettle", params, dates, occupancy, seed=42)
 
     avg_daily = sum(sum(result[d]) for d in dates) / len(dates)
@@ -128,7 +131,7 @@ def test_washing_machine_average_energy_fidelity():
     expected = params.rated_power_w / 1000.0 * params.event_duration_min / 60.0 * params.daily_frequency
 
     dates = [date(2020, 1, i) for i in range(1, 15)]
-    occupancy = {d: [True] * 48 for d in dates}
+    occupancy = {d: ["home"] * 48 for d in dates}
     result = generate_appliance_signal("washing_machine", params, dates, occupancy, seed=42)
 
     avg_daily = sum(sum(result[d]) for d in dates) / len(dates)
@@ -139,7 +142,7 @@ def test_shower_scales_with_occupant_count():
     """Shower energy with 4 occupants must be approx double that with 2."""
     params = DEFAULT_APPLIANCES["shower"]
     dates = [date(2020, 1, i) for i in range(1, 15)]
-    occupancy = {d: [True] * 48 for d in dates}
+    occupancy = {d: ["home"] * 48 for d in dates}
 
     result_2 = generate_appliance_signal("shower", params, dates, occupancy, seed=42, occupant_count=2)
     result_4 = generate_appliance_signal("shower", params, dates, occupancy, seed=42, occupant_count=4)
@@ -150,11 +153,11 @@ def test_shower_scales_with_occupant_count():
 
 
 def test_occupancy_correlated_events_only_in_home_slots():
-    """For an occupancy-correlated appliance, all energy must be in home slots."""
+    """For an occupancy-correlated appliance, all energy must be in home/sleep slots."""
     dates = [date(2020, 1, 6)]  # Monday
     # Only slots 10-20 are home; rest away
     home_slots = set(range(10, 21))
-    occ = {dates[0]: [i in home_slots for i in range(48)]}
+    occ = {dates[0]: ["home" if i in home_slots else "away" for i in range(48)]}
 
     result = generate_appliance_signal(
         "kettle", DEFAULT_APPLIANCES["kettle"], dates, occ, seed=42
@@ -164,9 +167,43 @@ def test_occupancy_correlated_events_only_in_home_slots():
             assert v == 0.0, f"Slot {i} should be 0 (not home), got {v}"
 
 
+def test_awake_only_events_exclude_sleep_slots():
+    """awake_only=True appliance must place no energy in 'sleep' slots."""
+    dates = [date(2020, 1, 6)]
+    sleep_slots = set(range(0, 14))  # 00:00–06:30
+    occ = {dates[0]: ["sleep" if i in sleep_slots else "home" for i in range(48)]}
+    params = ApplianceParams(
+        rated_power_w=2500.0, event_duration_min=3.0,
+        daily_frequency=6.0, awake_only=True,
+    )
+    result = generate_appliance_signal("kettle", params, dates, occ, seed=42)
+    for i in sleep_slots:
+        assert result[dates[0]][i] == 0.0, f"Slot {i} (sleep) should be 0, got {result[dates[0]][i]}"
+
+
+def test_awake_only_false_allows_sleep_slots():
+    """awake_only=False appliance may place energy in 'sleep' slots."""
+    dates = [date(2020, 1, 6)]
+    occ = {dates[0]: ["sleep"] * 14 + ["away"] * 34}
+    params = ApplianceParams(
+        rated_power_w=2500.0, event_duration_min=3.0,
+        daily_frequency=6.0, awake_only=False,
+    )
+    result = generate_appliance_signal("water_heater", params, dates, occ, seed=42)
+    assert sum(result[dates[0]]) > 0.0, "Events should be placed in sleep slots when awake_only=False"
+
+
+def test_kettle_is_awake_only():
+    assert DEFAULT_APPLIANCES["kettle"].awake_only is True
+
+
+def test_water_heater_not_awake_only():
+    assert DEFAULT_APPLIANCES["water_heater"].awake_only is False
+
+
 def test_generate_electricity_profile_structure():
     dates = [date(2020, 1, 1)]
-    occupancy = {dates[0]: [True] * 48}
+    occupancy = {dates[0]: ["home"] * 48}
     profile = generate_electricity_profile(DEFAULT_APPLIANCES, dates, occupancy)
 
     assert dates[0] in profile
@@ -177,7 +214,7 @@ def test_generate_electricity_profile_structure():
 def test_generate_electricity_profile_total_energy_fidelity():
     """Total profile daily energy must be within +-10% of sum of individual expected energies."""
     dates = [date(2020, 1, i) for i in range(1, 8)]  # 7 January days
-    occupancy = {d: [True] * 48 for d in dates}
+    occupancy = {d: ["home"] * 48 for d in dates}
 
     profile = generate_electricity_profile(DEFAULT_APPLIANCES, dates, occupancy)
 
