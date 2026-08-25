@@ -27,6 +27,7 @@ import os
 from collections import defaultdict
 from datetime import date, timedelta
 
+from energy_model import DwellingParams, derived_quantities
 from config import (
     ELEC_RATE_P_KWH,
     GAS_KWH_PER_M3,
@@ -654,6 +655,283 @@ def estimate_base_load(gas: dict[str, float]) -> float:
     """Median gas kWh/period in summer months (May–Sep)."""
     vals = sorted(v for ts, v in gas.items() if int(ts[5:7]) in SUMMER_MONTHS)
     return vals[len(vals) // 2] if vals else 0.0
+
+
+# ---------------------------------------------------------------------------
+# Method: forward simulation HTC fitting (Model B: temperature + energy)
+# ---------------------------------------------------------------------------
+
+def _golden_section(
+    f,
+    lo: float,
+    hi: float,
+    tol: float = 1e-3,
+    max_iter: int = 60,
+) -> float:
+    """Bounded scalar minimizer using golden-section search (no external deps)."""
+    gr = (5 ** 0.5 - 1) / 2   # 1/golden ratio ≈ 0.618
+    a, b = lo, hi
+    c = b - gr * (b - a)
+    d = a + gr * (b - a)
+    fc, fd = f(c), f(d)
+    for _ in range(max_iter):
+        if abs(b - a) < tol:
+            break
+        if fc < fd:
+            b, d, fd = d, c, fc
+            c  = b - gr * (b - a)
+            fc = f(c)
+        else:
+            a, c, fc = c, d, fd
+            d  = a + gr * (b - a)
+            fd = f(d)
+    return (a + b) / 2
+
+
+def _nelder_mead_2d(
+    f,
+    x0: list[float],
+    initial_step: float = 0.3,
+    tol: float = 1e-3,
+    max_iter: int = 300,
+) -> list[float]:
+    """
+    Nelder-Mead simplex minimizer for exactly 2 parameters (no external deps).
+
+    x0           : initial guess [p1, p2]
+    initial_step : initial simplex edge length in each dimension
+    tol          : convergence when max parameter spread across simplex < tol
+    """
+    n = 2
+    simplex = [list(x0)]
+    for i in range(n):
+        v = list(x0)
+        v[i] += initial_step
+        simplex.append(v)
+    vals = [f(x) for x in simplex]
+
+    alpha, gamma, rho, sigma = 1.0, 2.0, 0.5, 0.5
+
+    for _ in range(max_iter):
+        order   = sorted(range(n + 1), key=lambda i: vals[i])
+        simplex = [simplex[i] for i in order]
+        vals    = [vals[i]    for i in order]
+
+        spread = max(
+            abs(simplex[i][j] - simplex[0][j])
+            for i in range(1, n + 1) for j in range(n)
+        )
+        if spread < tol:
+            break
+
+        centroid = [sum(simplex[i][j] for i in range(n)) / n for j in range(n)]
+
+        xr = [centroid[j] + alpha * (centroid[j] - simplex[n][j]) for j in range(n)]
+        fr = f(xr)
+
+        if vals[0] <= fr < vals[n - 1]:
+            simplex[n], vals[n] = xr, fr
+            continue
+
+        if fr < vals[0]:
+            xe = [centroid[j] + gamma * (xr[j] - centroid[j]) for j in range(n)]
+            fe = f(xe)
+            simplex[n], vals[n] = (xe, fe) if fe < fr else (xr, fr)
+            continue
+
+        xc = [centroid[j] + rho * (simplex[n][j] - centroid[j]) for j in range(n)]
+        fc = f(xc)
+        if fc < vals[n]:
+            simplex[n], vals[n] = xc, fc
+            continue
+
+        for i in range(1, n + 1):
+            simplex[i] = [simplex[0][j] + sigma * (simplex[i][j] - simplex[0][j]) for j in range(n)]
+            vals[i]    = f(simplex[i])
+
+    return simplex[0]
+
+
+def fit_htc_from_observations(
+    obs_rows: list[dict],
+    outdoor_temp: dict[str, float],
+    wind_speed: dict[str, float],
+    dwelling: DwellingParams,
+    dates: list[date],
+    temp_weight: float = 1.0,
+    energy_weight: float = 1.0,
+    htc_scale_bounds: tuple[float, float] = (0.2, 5.0),
+    fit_g: bool = False,
+    g_scale_bounds: tuple[float, float] = (0.1, 10.0),
+    use_zone2: bool = False,
+) -> dict:
+    """
+    Estimate HTC (and optionally inter-zone conductance G) by minimising a
+    weighted residual between a forward simulation and sensor observations.
+
+    Each row in obs_rows must have keys: timestamp, indoor_temp_c, gas_kwh,
+    electricity_kwh. outdoor_temp and wind_speed are keyed by timestamp.
+
+    fit_g=False, use_zone2=False (default): 1D golden-section over htc_scale
+        using zone 1 indoor temperature and gas consumption.
+
+    use_zone2=True: 1D golden-section over htc_scale using zone 2 indoor
+        temperature and gas consumption instead of zone 1. The two-zone
+        simulation is still run; only the temperature term in the loss changes.
+        The apparent HTC will be biased upward by inter-zone coupling (G),
+        because zone 2 sees both fabric heat loss and heat flow from zone 1.
+        Requires indoor_temp_c_z2 in obs_rows and dwelling.zone2_floor_area_m2 > 0.
+
+    fit_g=True: two-parameter Nelder-Mead search over (htc_scale, g_scale).
+        obs_rows must additionally carry indoor_temp_c_z2. Adds a zone 2
+        temperature residual term to the loss, which independently constrains G.
+        Requires dwelling.zone2_floor_area_m2 > 0.
+
+    Both residual terms are normalised by the observed standard deviation so
+    that temp_weight=1 and energy_weight=1 give equal dimensionless contribution.
+
+    Returns: htc_w_per_k, htc_scale, band, epc_score, loss, rmse_temp_c,
+             rmse_gas_kwh, n_heating_slots. When fit_g=True also returns
+             g_w_per_k, g_scale, rmse_temp_c_z2.
+    """
+    from simulation_runner import WeatherSeries, forward_simulate, forward_simulate_two_zone
+
+    if fit_g and dwelling.zone2_floor_area_m2 <= 0.0:
+        raise ValueError("fit_g=True requires a two-zone dwelling (zone2_floor_area_m2 > 0)")
+    if use_zone2 and dwelling.zone2_floor_area_m2 <= 0.0:
+        raise ValueError("use_zone2=True requires a two-zone dwelling (zone2_floor_area_m2 > 0)")
+
+    weather    = WeatherSeries(outdoor_temp_c=outdoor_temp, wind_speed_ms=wind_speed)
+    timestamps = [r["timestamp"]           for r in obs_rows]
+    t_obs      = [float(r["indoor_temp_c"]) for r in obs_rows]
+    g_obs      = [float(r["gas_kwh"])       for r in obs_rows]
+    e_obs      = [float(r["electricity_kwh"]) for r in obs_rows]
+
+    gains = (
+        {ts: e * dwelling.internal_gains_fraction
+         for ts, e in zip(timestamps, e_obs)}
+        if dwelling.internal_gains_fraction > 0.0 else None
+    )
+
+    def _std(vals: list[float]) -> float:
+        if not vals:
+            return 1.0
+        m = sum(vals) / len(vals)
+        v = sum((x - m) ** 2 for x in vals) / len(vals)
+        return v ** 0.5 or 1.0
+
+    t1_std = _std(t_obs)
+    base   = dwelling.base_load_kwh_per_period
+    g_active  = [g for g in g_obs if g > base * 2]
+    g_std     = _std(g_active) if len(g_active) >= 10 else 1.0
+    n_heating = len(g_active)
+
+    two_zone = dwelling.zone2_floor_area_m2 > 0.0
+
+    # Zone 2 observations (needed when fit_g=True or use_zone2=True)
+    t2_obs: list[float | None] = []
+    t2_std = 1.0
+    if fit_g or use_zone2:
+        t2_obs = [r.get("indoor_temp_c_z2") for r in obs_rows]
+        if not any(v is not None for v in t2_obs):
+            raise ValueError("fit_g/use_zone2 requires indoor_temp_c_z2 in obs_rows")
+        t2_std = _std([v for v in t2_obs if v is not None])
+
+    def _simulate(htc_scale: float, g_scale: float = 1.0) -> tuple[dict, dict, dict | None]:
+        if two_zone:
+            t1, gs, _, t2 = forward_simulate_two_zone(
+                dwelling, dates, weather, internal_gains=gains,
+                htc_scale=htc_scale, g_scale=g_scale,
+            )
+        else:
+            t1, gs, _ = forward_simulate(
+                dwelling, dates, weather, internal_gains=gains, htc_scale=htc_scale,
+            )
+            t2 = None
+        return t1, gs, t2
+
+    def _residuals(htc_scale: float, g_scale: float = 1.0):
+        t1_sim, g_sim, t2_sim = _simulate(htc_scale, g_scale)
+        t1_sq = [(t1_sim[ts] - t) ** 2 for ts, t in zip(timestamps, t_obs) if ts in t1_sim]
+        rmse_t1 = (sum(t1_sq) / len(t1_sq)) ** 0.5 if t1_sq else float("inf")
+        g_sq = [
+            (g_sim[ts] - g) ** 2
+            for ts, g in zip(timestamps, g_obs)
+            if g > base * 2 and ts in g_sim
+        ]
+        rmse_g = (sum(g_sq) / len(g_sq)) ** 0.5 if g_sq else 0.0
+        rmse_t2 = float("nan")
+        if t2_sim and t2_obs:
+            t2_sq = [
+                (t2_sim[ts] - t) ** 2
+                for ts, t in zip(timestamps, t2_obs)
+                if t is not None and ts in t2_sim
+            ]
+            rmse_t2 = (sum(t2_sq) / len(t2_sq)) ** 0.5 if t2_sq else float("nan")
+        return rmse_t1, rmse_g, rmse_t2
+
+    if fit_g:
+        def _loss_2d(params: list[float]) -> float:
+            htc_s, g_s = params
+            if not (htc_scale_bounds[0] <= htc_s <= htc_scale_bounds[1]):
+                return 1e6
+            if not (g_scale_bounds[0] <= g_s <= g_scale_bounds[1]):
+                return 1e6
+            rmse_t1, rmse_g, rmse_t2 = _residuals(htc_s, g_s)
+            t2_term = (rmse_t2 / t2_std) if rmse_t2 == rmse_t2 else 0.0
+            return (temp_weight   * (rmse_t1 / t1_std) +
+                    temp_weight   * t2_term +
+                    energy_weight * (rmse_g  / g_std))
+
+        best_htc_scale, best_g_scale = _nelder_mead_2d(_loss_2d, [1.0, 1.0])
+    elif use_zone2:
+        def _loss_z2(htc_scale: float) -> float:
+            _, rmse_g, rmse_t2 = _residuals(htc_scale)
+            t2_term = (rmse_t2 / t2_std) if rmse_t2 == rmse_t2 else float("inf")
+            return temp_weight * t2_term + energy_weight * (rmse_g / g_std)
+
+        best_htc_scale = _golden_section(_loss_z2, *htc_scale_bounds)
+        best_g_scale   = 1.0
+    else:
+        def _loss_1d(htc_scale: float) -> float:
+            rmse_t1, rmse_g, _ = _residuals(htc_scale)
+            return temp_weight * (rmse_t1 / t1_std) + energy_weight * (rmse_g / g_std)
+
+        best_htc_scale = _golden_section(_loss_1d, *htc_scale_bounds)
+        best_g_scale   = 1.0
+
+    dq         = derived_quantities(dwelling)
+    fitted_htc = dq["htc"] * best_htc_scale
+    floor_area = dwelling.total_floor_area_m2
+    band_info  = hlc_to_epc_band(fitted_htc / floor_area)
+
+    rmse_t1_f, rmse_g_f, rmse_t2_f = _residuals(best_htc_scale, best_g_scale)
+    if fit_g:
+        t2_term = (rmse_t2_f / t2_std) if rmse_t2_f == rmse_t2_f else 0.0
+        final_loss = (temp_weight   * (rmse_t1_f / t1_std) +
+                      temp_weight   * t2_term +
+                      energy_weight * (rmse_g_f  / g_std))
+    elif use_zone2:
+        t2_term = (rmse_t2_f / t2_std) if rmse_t2_f == rmse_t2_f else 0.0
+        final_loss = temp_weight * t2_term + energy_weight * (rmse_g_f / g_std)
+    else:
+        final_loss = temp_weight * (rmse_t1_f / t1_std) + energy_weight * (rmse_g_f / g_std)
+
+    result = {
+        "htc_w_per_k":     round(fitted_htc, 1),
+        "htc_scale":       round(best_htc_scale, 4),
+        "band":            band_info["band"],
+        "epc_score":       band_info["epc_score"],
+        "loss":            round(final_loss, 6),
+        "rmse_temp_c":     round(rmse_t1_f, 3),
+        "rmse_gas_kwh":    round(rmse_g_f, 4) if rmse_g_f == rmse_g_f else float("nan"),
+        "n_heating_slots": n_heating,
+    }
+    if fit_g:
+        result["g_w_per_k"]      = round(dwelling.inter_zone_conductance_w_per_k * best_g_scale, 1)
+        result["g_scale"]        = round(best_g_scale, 4)
+        result["rmse_temp_c_z2"] = round(rmse_t2_f, 3) if rmse_t2_f == rmse_t2_f else float("nan")
+    return result
 
 
 # ---------------------------------------------------------------------------

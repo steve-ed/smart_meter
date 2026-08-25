@@ -112,6 +112,7 @@ def forward_simulate(
     dates: list[date],
     weather: WeatherSeries,
     internal_gains: dict[str, float] | None = None,
+    htc_scale: float = 1.0,
 ) -> tuple[dict[str, float], dict[str, float], dict[str, bool]]:
     """
     Generate synthetic indoor_temp_c, gas_kwh, boiler_on from dwelling physics.
@@ -124,6 +125,10 @@ def forward_simulate(
     dwelling per slot (e.g. from appliances). Applied after decay, before the
     boiler deficit calculation. When None, no internal gains are modelled.
 
+    htc_scale: multiplicative factor applied to the derived HTC (default 1.0 =
+    nominal). Values > 1 increase heat loss; < 1 decrease it. Used by
+    fit_htc_from_observations to search over HTC without altering DwellingParams.
+
     If a timestamp is absent from weather.outdoor_temp_c, outdoor temperature
     defaults to the current indoor temperature (zero heat loss for that slot).
     """
@@ -133,8 +138,8 @@ def forward_simulate(
             "DwellingParams has zero or negative HTC — check that U-values and q50 are set. "
             "Use create_dwelling() or set all fabric parameters."
         )
-    tau = dq["tau_hours"]
     c_wh_per_k = dq["c_wh_per_k"]
+    tau = c_wh_per_k / (dq["htc"] * htc_scale)
 
     setpoint_sched = dp.t_setpoint_schedule
     if setpoint_sched is not None and len(setpoint_sched) != 48:
@@ -185,6 +190,8 @@ def forward_simulate_two_zone(
     dates: list[date],
     weather: WeatherSeries,
     internal_gains: dict[str, float] | None = None,
+    htc_scale: float = 1.0,
+    g_scale: float = 1.0,
 ) -> tuple[dict[str, float], dict[str, float], dict[str, bool], dict[str, float]]:
     """
     Two-zone forward simulation using explicit Euler integration.
@@ -198,7 +205,7 @@ def forward_simulate_two_zone(
     Returns (indoor_temp_z1, gas_kwh, boiler_on, indoor_temp_z2).
     """
     dq = derived_quantities(dp)
-    total_htc = dq["htc"]
+    total_htc = dq["htc"] * htc_scale
 
     z2_area = dp.zone2_floor_area_m2
     z1_area = dp.total_floor_area_m2 - z2_area
@@ -208,7 +215,7 @@ def forward_simulate_two_zone(
     HTC2 = z2_frac * total_htc
     C1   = dp.kappa * z1_area       # Wh/K
     C2   = dp.kappa * z2_area       # Wh/K
-    G    = dp.inter_zone_conductance_w_per_k
+    G    = dp.inter_zone_conductance_w_per_k * g_scale
     dt   = 0.5                      # hours per slot
 
     setpoint_sched = dp.t_setpoint_schedule
