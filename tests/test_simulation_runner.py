@@ -303,6 +303,54 @@ def test_none_schedule_uses_flat_setpoint():
     assert g1 == g2
 
 
+# --- boiler_max_kw tests ---
+
+def test_boiler_cap_limits_gas_per_slot():
+    """With a 24 kW cap, gas (space heating only) never exceeds 12 kWh per slot."""
+    dp = create_dwelling("1970s-semi", boiler_max_kw=24.0,
+                         t_setpoint_schedule=DEFAULT_SETPOINT_SCHEDULE)
+    dates = [date(2024, 1, 15)]
+    weather = _make_weather(dates, temp_c=3.0)
+    _, gas, _ = forward_simulate(dp, dates, weather)
+    max_gas_per_slot = 24.0 * 0.5 + dp.base_load_kwh_per_period  # cap + base load
+    for ts, kwh in gas.items():
+        assert kwh <= max_gas_per_slot + 1e-9, f"{ts}: {kwh:.4f} kWh exceeds cap"
+
+
+def test_boiler_cap_spreads_warmup_over_multiple_slots():
+    """With a cap, morning warmup must span more than one slot."""
+    dp_capped = create_dwelling("1970s-semi", boiler_max_kw=12.0,
+                                t_setpoint_schedule=DEFAULT_SETPOINT_SCHEDULE)
+    dates = [date(2024, 1, 15)]
+    weather = _make_weather(dates, temp_c=3.0)
+    _, gas, boiler = forward_simulate(dp_capped, dates, weather)
+    # Morning warmup: slots 14 onward until setpoint reached
+    warmup_slots = sum(1 for s in range(14, 20) if boiler[_ts(dates[0], s)])
+    assert warmup_slots > 1, "Capped boiler should need more than one slot to warm up"
+
+
+def test_boiler_cap_zero_matches_uncapped():
+    """boiler_max_kw=0.0 must produce identical results to the default (uncapped)."""
+    dp1 = create_dwelling("1990s-semi")
+    dp2 = create_dwelling("1990s-semi", boiler_max_kw=0.0)
+    dates = [date(2024, 1, 10)]
+    weather = _make_weather(dates, temp_c=6.0)
+    i1, g1, b1 = forward_simulate(dp1, dates, weather)
+    i2, g2, b2 = forward_simulate(dp2, dates, weather)
+    assert g1 == g2
+    assert i1 == i2
+
+
+def test_boiler_cap_indoor_never_exceeds_setpoint():
+    """Even with a cap, indoor temperature must never exceed the active setpoint."""
+    dp = create_dwelling("1970s-semi", boiler_max_kw=24.0)
+    dates = [date(2024, 1, 15)]
+    weather = _make_weather(dates, temp_c=3.0)
+    indoor, _, _ = forward_simulate(dp, dates, weather)
+    for ts, t in indoor.items():
+        assert t <= dp.t_setpoint + 1e-6
+
+
 def test_invalid_schedule_length_raises():
     """A schedule with wrong length must raise ValueError."""
     dp = create_dwelling("1970s-semi", t_setpoint_schedule=[20.0] * 24)

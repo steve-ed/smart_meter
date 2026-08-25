@@ -155,7 +155,10 @@ def forward_simulate(
             if in_heating and t_decay < setpoint:
                 heat_needed_wh = (setpoint - t_decay) * c_wh_per_k
                 gas_heat_kwh = heat_needed_wh / (dp.heating_efficiency * 1000.0)
-                t_indoor = setpoint
+                if dp.boiler_max_kw > 0.0:
+                    gas_heat_kwh = min(gas_heat_kwh, dp.boiler_max_kw * 0.5)
+                heat_delivered_wh = gas_heat_kwh * dp.heating_efficiency * 1000.0
+                t_indoor = min(t_decay + heat_delivered_wh / c_wh_per_k, setpoint)
                 boiler_on = True
             else:
                 t_indoor = max(t_decay, t_out)

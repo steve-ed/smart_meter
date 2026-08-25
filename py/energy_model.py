@@ -36,6 +36,7 @@ class DwellingParams:
     heat_threshold_kwh: float = 0.15
     t_setpoint: float = 20.0
     t_setpoint_schedule: list[float] | None = None  # 48 per-slot setpoints; overrides t_setpoint when set
+    boiler_max_kw: float = 0.0                      # maximum boiler output in kW; 0.0 = uncapped
     base_load_kwh_per_period: float = 0.08
 
     # ---- Solar (optional) ----
