@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "py"))
 from simulation_runner import (
     WeatherSeries,
     SimulationResult,
+    DEFAULT_SETPOINT_SCHEDULE,
     _ts,
     _flatten_bool,
     _flatten_float,
@@ -17,7 +18,7 @@ from simulation_runner import (
     forward_simulate,
     run_simulation,
 )
-from energy_model import create_dwelling
+from energy_model import create_dwelling, DwellingParams
 from occupancy_model import DEFAULT_SCHEDULE
 
 
@@ -248,3 +249,64 @@ def test_run_simulation_reproducible(tmp_path):
     assert r1.electricity_kwh == r2.electricity_kwh
     assert r1.gas_kwh == r2.gas_kwh
     assert r1.indoor_temp_c == r2.indoor_temp_c
+
+
+# --- setpoint schedule tests ---
+
+def test_default_setpoint_schedule_length():
+    assert len(DEFAULT_SETPOINT_SCHEDULE) == 48
+
+
+def test_default_setpoint_schedule_setback_during_sleep():
+    # slots 0-13 are sleep → 16°C
+    assert all(DEFAULT_SETPOINT_SCHEDULE[s] == 16.0 for s in range(14))
+
+
+def test_default_setpoint_schedule_comfort_during_evening():
+    # slots 35-45 are evening home → 20°C
+    assert all(DEFAULT_SETPOINT_SCHEDULE[s] == 20.0 for s in range(35, 46))
+
+
+def test_setpoint_schedule_boiler_off_during_setback_when_warm():
+    """During setback slots, boiler must not fire while indoor temp is above the setback setpoint."""
+    dp = create_dwelling("1970s-semi", t_setpoint_schedule=DEFAULT_SETPOINT_SCHEDULE)
+    dates = [date(2024, 1, 15)]
+    weather = _make_weather(dates, temp_c=5.0)
+    indoor, gas, boiler = forward_simulate(dp, dates, weather)
+    # Setback slots (0-13) have 16°C setpoint — boiler should not fire while indoor > 16°C
+    for slot in range(14):
+        ts = _ts(dates[0], slot)
+        if indoor[ts] > 16.0:
+            assert not boiler[ts], f"Slot {slot}: boiler fired at {indoor[ts]:.2f}°C with 16°C setback"
+
+
+def test_setpoint_schedule_lower_gas_than_flat_setpoint():
+    """A setback schedule must consume less gas than a flat 20°C setpoint."""
+    dp_flat = create_dwelling("1970s-semi")
+    dp_sched = create_dwelling("1970s-semi", t_setpoint_schedule=DEFAULT_SETPOINT_SCHEDULE)
+    dates = [date(2024, 1, 15)]
+    weather = _make_weather(dates, temp_c=5.0)
+    _, gas_flat, _ = forward_simulate(dp_flat, dates, weather)
+    _, gas_sched, _ = forward_simulate(dp_sched, dates, weather)
+    assert sum(gas_sched.values()) < sum(gas_flat.values())
+
+
+def test_none_schedule_uses_flat_setpoint():
+    """t_setpoint_schedule=None must produce same result as no schedule set."""
+    dp1 = create_dwelling("1990s-semi")
+    dp2 = create_dwelling("1990s-semi", t_setpoint_schedule=None)
+    dates = [date(2024, 1, 10)]
+    weather = _make_weather(dates, temp_c=6.0)
+    i1, g1, b1 = forward_simulate(dp1, dates, weather)
+    i2, g2, b2 = forward_simulate(dp2, dates, weather)
+    assert i1 == i2
+    assert g1 == g2
+
+
+def test_invalid_schedule_length_raises():
+    """A schedule with wrong length must raise ValueError."""
+    dp = create_dwelling("1970s-semi", t_setpoint_schedule=[20.0] * 24)
+    dates = [date(2024, 1, 15)]
+    weather = _make_weather(dates, temp_c=5.0)
+    with pytest.raises(ValueError, match="48"):
+        forward_simulate(dp, dates, weather)

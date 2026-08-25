@@ -85,6 +85,26 @@ def load_weather(dates: list[date], weather_path: str = "data/weather.csv") -> W
 # Oct–Apr. May is a shoulder month with no space heating; Jun–Sep are summer.
 _HEATING_MONTHS: frozenset[int] = frozenset({10, 11, 12, 1, 2, 3, 4})
 
+# Typical UK programmer: comfort temperature during waking/home periods, setback elsewhere.
+# Mirrors the DEFAULT_SCHEDULE occupancy pattern (sleep→setback, away→setback, home→comfort).
+def _default_setpoint_schedule() -> list[float]:
+    schedule = []
+    for slot in range(48):
+        if slot < 14:     # 00:00–06:30  sleep setback
+            schedule.append(16.0)
+        elif slot < 17:   # 07:00–08:00  morning warmup
+            schedule.append(20.0)
+        elif slot < 35:   # 08:30–17:00  away setback
+            schedule.append(16.0)
+        elif slot < 46:   # 17:30–22:30  evening comfort
+            schedule.append(20.0)
+        else:             # 23:00–23:30  sleep setback
+            schedule.append(16.0)
+    return schedule
+
+
+DEFAULT_SETPOINT_SCHEDULE: list[float] = _default_setpoint_schedule()
+
 
 def forward_simulate(
     dp: DwellingParams,
@@ -110,6 +130,13 @@ def forward_simulate(
     tau = dq["tau_hours"]
     c_wh_per_k = dq["c_wh_per_k"]
 
+    setpoint_sched = dp.t_setpoint_schedule
+    if setpoint_sched is not None and len(setpoint_sched) != 48:
+        raise ValueError(
+            f"t_setpoint_schedule must have 48 values (one per half-hour slot), "
+            f"got {len(setpoint_sched)}"
+        )
+
     indoor_temp: dict[str, float] = {}
     gas_out: dict[str, float] = {}
     boiler_out: dict[str, bool] = {}
@@ -121,13 +148,14 @@ def forward_simulate(
         for slot in range(48):
             ts = _ts(d, slot)
             t_out = weather.outdoor_temp_c.get(ts, t_indoor)
+            setpoint = setpoint_sched[slot] if setpoint_sched is not None else dp.t_setpoint
 
             t_decay = decay_step(t_indoor, t_out, tau)
 
-            if in_heating and t_decay < dp.t_setpoint:
-                heat_needed_wh = (dp.t_setpoint - t_decay) * c_wh_per_k
+            if in_heating and t_decay < setpoint:
+                heat_needed_wh = (setpoint - t_decay) * c_wh_per_k
                 gas_heat_kwh = heat_needed_wh / (dp.heating_efficiency * 1000.0)
-                t_indoor = dp.t_setpoint
+                t_indoor = setpoint
                 boiler_on = True
             else:
                 t_indoor = max(t_decay, t_out)

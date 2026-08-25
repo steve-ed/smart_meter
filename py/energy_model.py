@@ -35,6 +35,7 @@ class DwellingParams:
     heating_efficiency: float = 0.89
     heat_threshold_kwh: float = 0.15
     t_setpoint: float = 20.0
+    t_setpoint_schedule: list[float] | None = None  # 48 per-slot setpoints; overrides t_setpoint when set
     base_load_kwh_per_period: float = 0.08
 
     # ---- Solar (optional) ----
