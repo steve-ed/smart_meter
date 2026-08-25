@@ -11,9 +11,16 @@ import csv
 import dataclasses
 from datetime import date, timedelta
 
-from energy_model import DwellingParams
+from energy_model import DwellingParams, derived_quantities
 from home_model import METER_PARAMS
 from simulation_runner import DEFAULT_SETPOINT_SCHEDULE, run_simulation
+from tier4_analysis import (
+    aggregate_tau,
+    calculate_hlc,
+    find_free_cooling_events,
+    fit_tau,
+    hlc_to_epc_band,
+)
 
 # ---------------------------------------------------------------------------
 # Dwelling configuration
@@ -95,6 +102,49 @@ def main() -> None:
     print(f"\nWritten {slots_written:,} rows to {OUTPUT_PATH}")
     print(f"  Annual electricity : {total_elec:,.1f} kWh")
     print(f"  Annual gas         : {total_gas:,.1f} kWh")
+
+    _run_tier4_checks(OUTPUT_PATH, DWELLING)
+
+
+def _run_tier4_checks(output_path: str, dwelling: DwellingParams) -> None:
+    """Run tier 4 EPC estimation against the generated ground truth and report accuracy."""
+    indoor: dict[str, dict] = {}
+    with open(output_path, newline="") as f:
+        for row in csv.DictReader(f):
+            ts = row["timestamp"]
+            h, m = int(ts[11:13]), int(ts[14:16])
+            indoor[ts] = {
+                "temp_c":    float(row["indoor_temp_c"]),
+                "boiler_on": int(row["boiler_on"]),
+                "outdoor_c": float(row["outdoor_temp_c"]),
+                "period":    h * 2 + m // 30,
+            }
+
+    dq         = derived_quantities(dwelling)
+    true_htc   = dq["htc"]
+    true_tau   = dq["tau_hours"]
+    floor_area = dwelling.total_floor_area_m2
+    true_band  = hlc_to_epc_band(true_htc / floor_area)
+
+    print(f"\n--- Tier 4 validation (tau / HLC recovery) ---")
+    print(f"  True HTC : {true_htc:.1f} W/K    True tau : {true_tau:.1f} h    True band : {true_band['band']}")
+
+    for label, overnight in (("all-hours", False), ("overnight", True)):
+        events  = find_free_cooling_events(indoor, overnight_only=overnight)
+        fits    = [fit_tau(ev) for ev in events]
+        good    = [f for f in fits if f]
+        tau_agg = aggregate_tau(good)
+        if tau_agg is None:
+            print(f"  [{label:<9}]  insufficient events ({len(good)} good fits)")
+            continue
+        hlc      = calculate_hlc(tau_agg, floor_area, "semi", "1945_1980")
+        band     = hlc_to_epc_band(hlc["hlc_per_m2"])
+        tau_err  = (tau_agg["tau_hours"] - true_tau) / true_tau * 100
+        hlc_err  = (hlc["hlc_w_per_k"]  - true_htc) / true_htc * 100
+        print(f"  [{label:<9}]  events={len(good)}"
+              f"  tau={tau_agg['tau_hours']:.1f}h ({tau_err:+.1f}%)"
+              f"  HLC={hlc['hlc_w_per_k']:.1f} W/K ({hlc_err:+.1f}%)"
+              f"  band={band['band']}  conf={hlc['confidence']}")
 
 
 if __name__ == "__main__":
