@@ -1,5 +1,5 @@
 import pytest
-from energy_model import DwellingParams, derived_quantities
+from energy_model import ARCHETYPES, DwellingParams, create_dwelling, derived_quantities
 
 
 def test_dwelling_params_requires_geometry():
@@ -116,3 +116,62 @@ def test_derived_quantities_tau_equals_c_over_htc():
     )
     d = derived_quantities(p)
     assert abs(d["tau_hours"] - d["c_wh_per_k"] / d["htc"]) < 0.001
+
+
+def test_all_five_archetypes_present():
+    expected = {
+        "pre-1919-terraced", "1970s-semi", "1990s-semi",
+        "2005-detached", "2015-semi",
+    }
+    assert expected == set(ARCHETYPES)
+
+
+def test_create_dwelling_returns_dwelling_params():
+    p = create_dwelling("1970s-semi")
+    assert isinstance(p, DwellingParams)
+
+
+def test_create_dwelling_archetype_id_set():
+    p = create_dwelling("1970s-semi")
+    assert p.archetype_id == "1970s-semi"
+
+
+def test_create_dwelling_unknown_raises():
+    with pytest.raises(ValueError, match="Unknown archetype"):
+        create_dwelling("nonexistent")
+
+
+def test_create_dwelling_override_single_param():
+    p = create_dwelling("1970s-semi", u_wall=0.20)
+    assert p.u_wall == 0.20
+    assert p.u_roof == 0.35  # unchanged from archetype
+
+
+def test_create_dwelling_override_does_not_mutate_archetype():
+    create_dwelling("1970s-semi", u_wall=0.20)
+    p2 = create_dwelling("1970s-semi")
+    assert p2.u_wall == 0.60  # original value restored
+
+
+def test_create_dwelling_all_archetypes_valid():
+    """Every archetype produces a DwellingParams with positive floor area."""
+    for arch_id in ARCHETYPES:
+        p = create_dwelling(arch_id)
+        assert p.total_floor_area_m2 > 0, f"{arch_id} has zero floor area"
+        assert p.htc_computable(), f"{arch_id} missing fabric params"
+
+
+def test_archetype_meter1_matches_home_model_params():
+    """1970s-semi must match the values in DWELLING_PARAMS[1] from home_model.py."""
+    p = create_dwelling("1970s-semi")
+    assert p.total_floor_area_m2 == 85.0
+    assert p.u_wall == 0.60
+    assert p.q50 == 10.0
+    assert p.kappa == 160
+
+
+def test_archetype_meter4_pre1919():
+    p = create_dwelling("pre-1919-terraced")
+    assert p.u_wall == 1.70
+    assert p.storey_height_m == 2.7
+    assert p.kappa == 220

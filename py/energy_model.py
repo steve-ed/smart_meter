@@ -70,6 +70,13 @@ class DwellingParams:
     label: str = ""
     archetype_id: str = ""
 
+    def htc_computable(self) -> bool:
+        """True when all U-values and q50 are set (non-zero)."""
+        return all([
+            self.u_wall, self.u_roof, self.u_floor,
+            self.u_window, self.u_door, self.q50,
+        ])
+
 
 _C_AIR = 0.33  # Wh/m³K — volumetric heat capacity of air
 
@@ -125,3 +132,121 @@ def derived_quantities(p: DwellingParams) -> dict:
         "c_wh_per_k":       c_wh_per_k,
         "tau_hours":        tau_hours,
     }
+
+
+ARCHETYPES: dict[str, dict] = {
+    "pre-1919-terraced": {
+        "archetype_id":        "pre-1919-terraced",
+        "label":               "Pre-1919 solid brick terraced",
+        "total_floor_area_m2": 75.0,
+        "storey_height_m":     2.7,
+        "window_area_m2":      10.0,
+        "door_area_m2":         3.0,
+        "u_wall":               1.70,
+        "u_roof":               0.16,
+        "u_floor":              0.70,
+        "u_window":             1.80,
+        "u_door":               2.00,
+        "y_value":              0.15,
+        "q50":                 14.0,
+        "kappa":              220.0,
+        "sensor_elec_meter":   True,
+        "sensor_gas_meter":    True,
+        "sensor_outdoor_temp": True,
+        "sensor_wind_speed":   True,
+    },
+    "1970s-semi": {
+        "archetype_id":        "1970s-semi",
+        "label":               "1970s semi, unimproved",
+        "total_floor_area_m2": 85.0,
+        "storey_height_m":     2.4,
+        "window_area_m2":      14.0,
+        "door_area_m2":         3.6,
+        "u_wall":               0.60,
+        "u_roof":               0.35,
+        "u_floor":              0.70,
+        "u_window":             2.80,
+        "u_door":               3.00,
+        "y_value":              0.15,
+        "q50":                 10.0,
+        "kappa":              160.0,
+        "sensor_elec_meter":   True,
+        "sensor_gas_meter":    True,
+        "sensor_outdoor_temp": True,
+        "sensor_wind_speed":   True,
+    },
+    "1990s-semi": {
+        "archetype_id":        "1990s-semi",
+        "label":               "1990s semi, partial upgrade",
+        "total_floor_area_m2": 90.0,
+        "storey_height_m":     2.4,
+        "window_area_m2":      16.0,
+        "door_area_m2":         3.6,
+        "u_wall":               0.60,
+        "u_roof":               0.16,
+        "u_floor":              0.45,
+        "u_window":             1.80,
+        "u_door":               1.80,
+        "y_value":              0.09,
+        "q50":                  8.0,
+        "kappa":              160.0,
+        "sensor_elec_meter":   True,
+        "sensor_gas_meter":    True,
+        "sensor_outdoor_temp": True,
+        "sensor_wind_speed":   True,
+    },
+    "2005-detached": {
+        "archetype_id":        "2005-detached",
+        "label":               "2005 detached, Part L 2002",
+        "total_floor_area_m2": 130.0,
+        "storey_height_m":     2.4,
+        "window_area_m2":      22.0,
+        "door_area_m2":         4.0,
+        "u_wall":               0.35,
+        "u_roof":               0.16,
+        "u_floor":              0.25,
+        "u_window":             1.60,
+        "u_door":               1.40,
+        "y_value":              0.08,
+        "q50":                  6.0,
+        "kappa":              155.0,
+        "sensor_elec_meter":   True,
+        "sensor_gas_meter":    True,
+        "sensor_outdoor_temp": True,
+        "sensor_wind_speed":   True,
+        "sensor_indoor_temp":  True,
+        "sensor_solar_generation": True,
+    },
+    "2015-semi": {
+        "archetype_id":        "2015-semi",
+        "label":               "2015 semi, Part L 2013",
+        "total_floor_area_m2": 88.0,
+        "storey_height_m":     2.4,
+        "window_area_m2":      15.0,
+        "door_area_m2":         3.6,
+        "u_wall":               0.28,
+        "u_roof":               0.13,
+        "u_floor":              0.20,
+        "u_window":             1.40,
+        "u_door":               1.20,
+        "y_value":              0.05,
+        "q50":                  4.0,
+        "kappa":              145.0,
+        "sensor_elec_meter":   True,
+        "sensor_gas_meter":    True,
+        "sensor_outdoor_temp": True,
+        "sensor_wind_speed":   True,
+    },
+}
+
+
+def create_dwelling(archetype_id: str, **overrides) -> DwellingParams:
+    """Create a DwellingParams from a named archetype with optional field overrides."""
+    if archetype_id not in ARCHETYPES:
+        raise ValueError(
+            f"Unknown archetype: '{archetype_id}'. "
+            f"Valid: {sorted(ARCHETYPES)}"
+        )
+    params = dict(ARCHETYPES[archetype_id])
+    params.update(overrides)
+    return DwellingParams(**params)
