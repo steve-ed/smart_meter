@@ -276,6 +276,35 @@ def smooth_observations(
     return result
 
 
+def smooth_events(
+    events: list[list[dict]],
+    process_sigma: float = 0.05,
+    measurement_sigma: float = 0.20,
+) -> list[list[dict]]:
+    """
+    Apply RTS Kalman smoother independently to each free-cooling event.
+
+    The filter is reset from the first observation of each event, so boiler-on
+    periods between events cannot corrupt the state estimate. Only indoor
+    temperature (temp_c) is smoothed; outdoor_c is left as-is (its mean over
+    the event already averages out measurement noise in the tau fit).
+
+    Returns a new list of events with smoothed temp_c values.
+    """
+    result = []
+    for event in events:
+        smoothed = kalman_smooth_series(
+            [p["temp_c"] for p in event],
+            process_sigma=process_sigma,
+            measurement_sigma=measurement_sigma,
+        )
+        result.append([
+            {**p, "temp_c": round(s, 3)}
+            for p, s in zip(event, smoothed)
+        ])
+    return result
+
+
 def write_observations(rows: list[dict], path: str) -> None:
     """Write noisy observations to CSV in the same column order as ground truth."""
     with open(path, "w", newline="") as f:

@@ -17,7 +17,7 @@ from datetime import date, timedelta
 
 from energy_model import DwellingParams, derived_quantities
 from home_model import METER_PARAMS
-from sensor_model import SensorNoiseModel, apply_noise, load_ground_truth, smooth_observations
+from sensor_model import SensorNoiseModel, apply_noise, load_ground_truth, smooth_observations, smooth_events
 from simulation_runner import DEFAULT_SETPOINT_SCHEDULE, run_simulation
 from tier4_analysis import (
     aggregate_tau,
@@ -168,16 +168,16 @@ def _run_tier4_checks(output_path: str, dwelling: DwellingParams) -> None:
             h, m = int(ts[11:13]), int(ts[14:16])
             period = h * 2 + m // 30
             indoor_z1[ts] = {
-                "temp_c":    float(row["indoor_temp_c_smooth"]),
+                "temp_c":    float(row["indoor_temp_c_obs"]),
                 "boiler_on": int(row["boiler_on"]),
-                "outdoor_c": float(row["outdoor_temp_c_smooth"]),
+                "outdoor_c": float(row["outdoor_temp_c_obs"]),
                 "period":    period,
             }
-            if "indoor_temp_c_z2_smooth" in row:
+            if "indoor_temp_c_z2_obs" in row and row["indoor_temp_c_z2_obs"]:
                 indoor_z2[ts] = {
-                    "temp_c":    float(row["indoor_temp_c_z2_smooth"]),
+                    "temp_c":    float(row["indoor_temp_c_z2_obs"]),
                     "boiler_on": int(row["boiler_on"]),
-                    "outdoor_c": float(row["outdoor_temp_c_smooth"]),
+                    "outdoor_c": float(row["outdoor_temp_c_obs"]),
                     "period":    period,
                 }
 
@@ -187,7 +187,7 @@ def _run_tier4_checks(output_path: str, dwelling: DwellingParams) -> None:
     floor_area = dwelling.total_floor_area_m2
     true_band  = hlc_to_epc_band(true_htc / floor_area)
 
-    print(f"\n--- Tier 4 validation (Kalman-smoothed observations as input) ---")
+    print(f"\n--- Tier 4 validation (per-event Kalman smoothing) ---")
     print(f"  True HTC : {true_htc:.1f} W/K    True tau : {true_tau:.1f} h    True band : {true_band['band']}")
 
     configs = [
@@ -199,6 +199,7 @@ def _run_tier4_checks(output_path: str, dwelling: DwellingParams) -> None:
 
     for label, indoor, overnight in configs:
         events  = find_free_cooling_events(indoor, overnight_only=overnight)
+        events  = smooth_events(events)
         fits    = [fit_tau(ev) for ev in events]
         good    = [f for f in fits if f]
         tau_agg = aggregate_tau(good)

@@ -13,6 +13,7 @@ from sensor_model import (
     apply_noise,
     kalman_smooth_series,
     load_ground_truth,
+    smooth_events,
     smooth_observations,
     write_observations,
     _add_temp_noise,
@@ -322,6 +323,69 @@ class TestSmoothObservations:
         raw_std    = statistics.stdev(r["indoor_temp_c"] for r in obs)
         smooth_std = statistics.stdev(r["indoor_temp_c_smooth"] for r in out)
         assert smooth_std < raw_std
+
+
+# ---------------------------------------------------------------------------
+# smooth_events
+# ---------------------------------------------------------------------------
+
+def _make_event(temps: list[float], outdoor_c: float = 5.0) -> list[dict]:
+    return [
+        {"temp_c": t, "outdoor_c": outdoor_c, "boiler_on": 0, "period": i,
+         "timestamp": f"2024-01-01 {i:02d}:00"}
+        for i, t in enumerate(temps)
+    ]
+
+
+class TestSmoothEvents:
+    def test_empty_returns_empty(self):
+        assert smooth_events([]) == []
+
+    def test_event_count_preserved(self):
+        events = [_make_event([18.0, 17.8, 17.5, 17.2]),
+                  _make_event([17.0, 16.8, 16.5, 16.2])]
+        result = smooth_events(events)
+        assert len(result) == 2
+
+    def test_slot_count_preserved_per_event(self):
+        events = [_make_event([18.0, 17.5, 17.0, 16.5, 16.0])]
+        result = smooth_events(events)
+        assert len(result[0]) == 5
+
+    def test_non_temp_fields_preserved(self):
+        events = [_make_event([18.0, 17.5, 17.0])]
+        result = smooth_events(events)
+        assert result[0][0]["boiler_on"] == 0
+        assert result[0][0]["outdoor_c"] == pytest.approx(5.0)
+        assert result[0][0]["timestamp"] == "2024-01-01 00:00"
+
+    def test_high_process_sigma_tracks_observations_closely(self):
+        # When process_sigma >> measurement_sigma the filter trusts measurements,
+        # so the smoothed output should be close to the raw observations.
+        temps = [18.0 - i * 0.2 for i in range(10)]
+        events = [_make_event(temps)]
+        result = smooth_events(events, process_sigma=100.0, measurement_sigma=0.001)
+        for orig, smoothed in zip(temps, [p["temp_c"] for p in result[0]]):
+            assert abs(smoothed - orig) < 0.05
+
+    def test_smoother_reduces_variance_within_event(self):
+        rng = random.Random(7)
+        true_temps = [18.0 - i * 0.1 for i in range(30)]
+        noisy = [t + rng.gauss(0.0, 0.2) for t in true_temps]
+        events = [_make_event(noisy)]
+        result = smooth_events(events)
+        raw_std = statistics.stdev(noisy)
+        smooth_std = statistics.stdev(p["temp_c"] for p in result[0])
+        assert smooth_std < raw_std
+
+    def test_each_event_smoothed_independently(self):
+        # Two identical events at different temperature levels — each should
+        # be smoothed from its own starting point, not carried over from previous
+        e1 = _make_event([20.0, 19.8, 19.5, 19.2])
+        e2 = _make_event([15.0, 14.8, 14.5, 14.2])
+        result = smooth_events([e1, e2])
+        # First point of event 2 must be near 15°C, not near 20°C
+        assert result[1][0]["temp_c"] == pytest.approx(15.0, abs=0.5)
 
 
 # ---------------------------------------------------------------------------
