@@ -133,3 +133,50 @@ def forward_simulate(
             boiler_out[ts] = boiler_on
 
     return indoor_temp, gas_out, boiler_out
+
+
+def run_simulation(
+    dp: DwellingParams,
+    dates: list[date],
+    schedule: OccupancySchedule = DEFAULT_SCHEDULE,
+    appliances: dict[str, ApplianceParams] = DEFAULT_APPLIANCES,
+    seed: int = 42,
+    lat: float = 53.6,
+    lon: float = -1.32,
+    pvgis_year: int = 2020,
+    weather_path: str = "data/weather.csv",
+    pvgis_cache_dir: str = "data",
+) -> SimulationResult:
+    """
+    Run a full synthetic simulation for a dwelling over the given dates.
+
+    Returns a SimulationResult with all series keyed by 'YYYY-MM-DD HH:MM'
+    timestamp strings, one per half-hour slot.
+    """
+    weather = load_weather(dates, weather_path)
+    occupancy_by_date = generate_occupancy(schedule, dates, seed=seed)
+    elec_by_date = generate_electricity_profile(
+        appliances, dates, occupancy_by_date,
+        seed=seed, occupant_count=dp.occupant_count,
+    )
+    indoor_temp, gas, boiler_on = forward_simulate(dp, dates, weather)
+    solar_by_date = generate_solar_profile(
+        dp, lat=lat, lon=lon, year=pvgis_year, cache_dir=pvgis_cache_dir,
+    )
+
+    timestamps = [_ts(d, s) for d in dates for s in range(48)]
+    solar_flat = _flatten_float(solar_by_date, dates) if solar_by_date is not None else None
+
+    return SimulationResult(
+        dwelling=dp,
+        dates=dates,
+        timestamps=timestamps,
+        outdoor_temp_c=weather.outdoor_temp_c,
+        wind_speed_ms=weather.wind_speed_ms,
+        occupancy=_flatten_bool(occupancy_by_date, dates),
+        electricity_kwh=_flatten_float(elec_by_date, dates),
+        gas_kwh=gas,
+        indoor_temp_c=indoor_temp,
+        boiler_on=boiler_on,
+        solar_kwh=solar_flat,
+    )

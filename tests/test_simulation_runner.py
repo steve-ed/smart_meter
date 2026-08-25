@@ -1,7 +1,7 @@
 # tests/test_simulation_runner.py
 import csv
 import os
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 import sys
@@ -15,8 +15,10 @@ from simulation_runner import (
     _flatten_float,
     load_weather,
     forward_simulate,
+    run_simulation,
 )
 from energy_model import create_dwelling
+from occupancy_model import DEFAULT_SCHEDULE
 
 
 def test_ts_formats_midnight():
@@ -160,3 +162,90 @@ def test_forward_simulate_reproducible():
     assert r1_indoor == r2_indoor
     assert r1_gas == r2_gas
     assert r1_boiler == r2_boiler
+
+
+def _winter_week():
+    start = date(2024, 1, 8)  # Monday
+    return [start + timedelta(days=i) for i in range(7)]
+
+
+def _write_weather_csv(tmp_path, dates, temp_c=6.0, wind_ms=3.0):
+    rows = ["timestamp,temp_c,wind_speed_ms,is_forecast"]
+    for d in dates:
+        for slot in range(48):
+            h, m = divmod(slot, 2)
+            ts = f"{d} {h:02d}:{m * 30:02d}"
+            rows.append(f"{ts},{temp_c},{wind_ms},0")
+    p = tmp_path / "weather.csv"
+    p.write_text("\n".join(rows))
+    return str(p)
+
+
+def test_run_simulation_returns_result(tmp_path):
+    dp = create_dwelling("1970s-semi")
+    dates = _winter_week()
+    result = run_simulation(dp, dates, weather_path=_write_weather_csv(tmp_path, dates))
+    assert isinstance(result, SimulationResult)
+
+
+def test_run_simulation_slot_counts(tmp_path):
+    dp = create_dwelling("1990s-semi")
+    dates = _winter_week()
+    result = run_simulation(dp, dates, weather_path=_write_weather_csv(tmp_path, dates))
+    n = len(dates) * 48
+    assert len(result.timestamps) == n
+    assert len(result.electricity_kwh) == n
+    assert len(result.gas_kwh) == n
+    assert len(result.indoor_temp_c) == n
+    assert len(result.boiler_on) == n
+
+
+def test_run_simulation_electricity_non_negative(tmp_path):
+    dp = create_dwelling("1970s-semi")
+    dates = _winter_week()
+    result = run_simulation(dp, dates, weather_path=_write_weather_csv(tmp_path, dates))
+    assert all(v >= 0.0 for v in result.electricity_kwh.values())
+
+
+def test_run_simulation_solar_none_when_absent(tmp_path):
+    dp = create_dwelling("1970s-semi")  # solar_present=False by default
+    dates = _winter_week()
+    result = run_simulation(dp, dates, weather_path=_write_weather_csv(tmp_path, dates))
+    assert result.solar_kwh is None
+
+
+@pytest.mark.skip(reason="requires PVGIS cache at data/")
+def test_run_simulation_solar_present_when_configured(tmp_path):
+    dp = create_dwelling("2005-detached", solar_present=True, solar_peak_kw=4.0,
+                         sensor_solar_generation=True)
+    dates = [date(2020, 6, 15)]  # must match pvgis_year=2020 (cached at data/)
+    result = run_simulation(
+        dp, dates,
+        weather_path=_write_weather_csv(tmp_path, dates, temp_c=18.0),
+        pvgis_year=2020, pvgis_cache_dir="data",
+    )
+    assert result.solar_kwh is not None
+    assert len(result.solar_kwh) == 48
+
+
+def test_run_simulation_occupancy_slot_0_is_true(tmp_path):
+    """Slot 0 (00:00) is 'sleep' in the default schedule, which maps to True."""
+    dp = create_dwelling("1970s-semi")
+    dates = [date(2024, 1, 8)]  # Monday
+    result = run_simulation(
+        dp, dates,
+        schedule=DEFAULT_SCHEDULE,
+        weather_path=_write_weather_csv(tmp_path, dates),
+    )
+    assert result.occupancy["2024-01-08 00:00"] is True
+
+
+def test_run_simulation_reproducible(tmp_path):
+    dp = create_dwelling("1990s-semi")
+    dates = _winter_week()
+    path = _write_weather_csv(tmp_path, dates)
+    r1 = run_simulation(dp, dates, seed=42, weather_path=path)
+    r2 = run_simulation(dp, dates, seed=42, weather_path=path)
+    assert r1.electricity_kwh == r2.electricity_kwh
+    assert r1.gas_kwh == r2.gas_kwh
+    assert r1.indoor_temp_c == r2.indoor_temp_c
