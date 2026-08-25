@@ -81,6 +81,7 @@ def load_weather(dates: list[date], weather_path: str = "data/weather.csv") -> W
     return WeatherSeries(outdoor_temp_c=temp_c, wind_speed_ms=wind_ms)
 
 
+# Oct–Apr. May is a shoulder month with no space heating; Jun–Sep are summer.
 _HEATING_MONTHS: frozenset[int] = frozenset({10, 11, 12, 1, 2, 3, 4})
 
 
@@ -95,6 +96,9 @@ def forward_simulate(
     Space heating fires when the decayed indoor temperature would fall below
     dp.t_setpoint during heating months (Oct–Apr).  Gas per slot is
     space-heating gas + dp.base_load_kwh_per_period.
+
+    If a timestamp is absent from weather.outdoor_temp_c, outdoor temperature
+    defaults to the current indoor temperature (zero heat loss for that slot).
     """
     dq = derived_quantities(dp)
     tau = dq["tau_hours"]

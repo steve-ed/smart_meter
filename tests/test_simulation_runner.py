@@ -159,3 +159,4 @@ def test_forward_simulate_reproducible():
     r2_indoor, r2_gas, r2_boiler = forward_simulate(dp, dates, weather)
     assert r1_indoor == r2_indoor
     assert r1_gas == r2_gas
+    assert r1_boiler == r2_boiler
