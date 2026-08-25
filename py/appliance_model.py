@@ -1,3 +1,6 @@
+import hashlib
+import math
+import random
 from dataclasses import dataclass
 from datetime import date
 
@@ -64,7 +67,58 @@ def generate_appliance_signal(
     seed: int = 42,
     occupant_count: int = 2,
 ) -> dict[date, list[float]]:
-    raise NotImplementedError
+    """
+    Generate half-hourly energy (kWh) for one appliance over the given dates.
+
+    Events are placed using a seeded RNG for reproducibility. If
+    params.occupancy_correlated is True, events are restricted to slots
+    where the occupant is home. For high-frequency appliances (n_events >=
+    len(available)), energy is distributed evenly across available slots
+    rather than placed as discrete events.
+
+    Returns dict[date, list[48 float]] -- kWh per half-hour.
+    """
+    rng = random.Random(seed)
+    result: dict[date, list[float]] = {}
+    event_slots = max(1, math.ceil(params.event_duration_min / 30.0))
+    energy_per_event = params.rated_power_w / 1000.0 * params.event_duration_min / 60.0
+    energy_per_slot = energy_per_event / event_slots
+
+    for d in dates:
+        slots = [0.0] * 48
+        factor = params.seasonal_factor if d.month in _SUMMER_MONTHS else 1.0
+        freq = params.daily_frequency * factor
+        if params.scales_with_occupants:
+            freq *= occupant_count
+
+        occ = occupancy.get(d, [True] * 48)
+        available = [i for i in range(48) if not params.occupancy_correlated or occ[i]]
+
+        if not available:
+            result[d] = slots
+            continue
+
+        n_whole = int(freq)
+        n_events = n_whole + (1 if rng.random() < (freq - n_whole) else 0)
+
+        if n_events >= len(available):
+            # High-frequency appliance (e.g. fridge): distribute total energy evenly.
+            total_energy = energy_per_event * freq
+            per_slot = total_energy / len(available)
+            for i in available:
+                slots[i] += per_slot
+        else:
+            max_start = 48 - event_slots
+            for _ in range(n_events):
+                valid = [s for s in available if s <= max_start]
+                start = rng.choice(valid if valid else available)
+                for k in range(event_slots):
+                    if start + k < 48:
+                        slots[start + k] += energy_per_slot
+
+        result[d] = slots
+
+    return result
 
 
 def generate_electricity_profile(
@@ -74,4 +128,23 @@ def generate_electricity_profile(
     seed: int = 42,
     occupant_count: int = 2,
 ) -> dict[date, list[float]]:
-    raise NotImplementedError
+    """
+    Generate half-hourly total electricity (kWh) as the superposition of all appliances.
+
+    Each appliance receives a unique derived seed so their events are placed
+    independently while remaining fully reproducible.
+
+    Returns dict[date, list[48 float]] -- kWh per half-hour.
+    """
+    result: dict[date, list[float]] = {d: [0.0] * 48 for d in dates}
+    for appliance_id, params in appliances.items():
+        raw = hashlib.md5(f"{seed}:{appliance_id}".encode()).digest()
+        appliance_seed = int.from_bytes(raw[:4], "little") & 0x7FFF_FFFF
+        signal = generate_appliance_signal(
+            appliance_id, params, dates, occupancy,
+            seed=appliance_seed, occupant_count=occupant_count,
+        )
+        for d in dates:
+            for i in range(48):
+                result[d][i] += signal[d][i]
+    return result
