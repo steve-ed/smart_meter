@@ -1,5 +1,5 @@
 import pytest
-from energy_model import DwellingParams
+from energy_model import DwellingParams, derived_quantities
 
 
 def test_dwelling_params_requires_geometry():
@@ -41,9 +41,6 @@ def test_dwelling_params_defaults():
     assert p.sensor_outdoor_temp is False
     assert p.sensor_indoor_temp is False
     assert p.occupancy_source == "synthetic"
-
-
-from energy_model import derived_quantities
 
 
 def test_derived_quantities_returns_htc_and_tau():

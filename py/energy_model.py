@@ -76,13 +76,17 @@ _C_AIR = 0.33  # Wh/m³K — volumetric heat capacity of air
 
 def derived_quantities(p: DwellingParams) -> dict:
     """Compute HTC, tau, and envelope geometry from a DwellingParams instance."""
-    footprint = p.total_floor_area_m2 / 2.0
+    footprint = p.total_floor_area_m2 / 2.0  # two-storey assumption; bungalows not supported
     aspect = p.plan_aspect_ratio
     width = (footprint / aspect) ** 0.5
     length = width * aspect
     perimeter = 2.0 * (length + width)
     wall_gross = perimeter * p.storey_height_m * 2.0
     wall_net = wall_gross - p.window_area_m2 - p.door_area_m2
+    assert wall_net >= 0, (
+        f"window+door area ({p.window_area_m2 + p.door_area_m2:.1f} m²) "
+        f"exceeds gross wall area ({wall_gross:.1f} m²)"
+    )
     roof_area = footprint
     floor_area = footprint
     envelope_area = wall_gross + roof_area + floor_area
