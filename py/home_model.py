@@ -24,238 +24,129 @@ from config import (
     REGRESSION_START,
 )
 
+from energy_model import (
+    DwellingParams,
+    create_dwelling,
+    derived_quantities,
+)
+
 # ---------------------------------------------------------------------------
-# Dwelling archetypes — one per meter
+# Dwelling parameters — one DwellingParams per meter
 # ---------------------------------------------------------------------------
 
-DWELLING_PARAMS = {
-    1: {
-        "label":               "1970s semi, unimproved",
-        "total_floor_area_m2": 85.0,
-        "storey_height_m":     2.4,
-        "window_area_m2":      14.0,
-        "door_area_m2":         3.6,
-        "u_wall":               0.60,
-        "u_roof":               0.35,
-        "u_floor":              0.70,
-        "u_window":             2.80,
-        "u_door":               3.00,
-        "y_value":              0.15,
-        "q50":                 10.0,
-        "kappa":              160,
-    },
-    2: {
-        "label":               "1990s semi, partial upgrade",
-        "total_floor_area_m2": 90.0,
-        "storey_height_m":     2.4,
-        "window_area_m2":      16.0,
-        "door_area_m2":         3.6,
-        "u_wall":               0.60,
-        "u_roof":               0.16,
-        "u_floor":              0.45,
-        "u_window":             1.80,
-        "u_door":               1.80,
-        "y_value":              0.09,
-        "q50":                  8.0,
-        "kappa":              160,
-    },
-    3: {
-        "label":               "2005 detached, Part L 2002",
-        "total_floor_area_m2": 130.0,
-        "storey_height_m":     2.4,
-        "window_area_m2":      22.0,
-        "door_area_m2":         4.0,
-        "u_wall":               0.35,
-        "u_roof":               0.16,
-        "u_floor":              0.25,
-        "u_window":             1.60,
-        "u_door":               1.40,
-        "y_value":              0.08,
-        "q50":                  6.0,
-        "kappa":              155,
-    },
-    4: {
-        "label":               "Pre-1919 terraced, solid brick",
-        "total_floor_area_m2": 75.0,
-        "storey_height_m":     2.7,
-        "window_area_m2":      10.0,
-        "door_area_m2":         3.0,
-        "u_wall":               1.70,
-        "u_roof":               0.16,
-        "u_floor":              0.70,
-        "u_window":             1.80,
-        "u_door":               2.00,
-        "y_value":              0.15,
-        "q50":                 14.0,
-        "kappa":              220,
-    },
-    5: {
-        "label":               "2015 semi, Part L 2013",
-        "total_floor_area_m2": 88.0,
-        "storey_height_m":     2.4,
-        "window_area_m2":      15.0,
-        "door_area_m2":         3.6,
-        "u_wall":               0.28,
-        "u_roof":               0.13,
-        "u_floor":              0.20,
-        "u_window":             1.40,
-        "u_door":               1.20,
-        "y_value":              0.05,
-        "q50":                  4.0,
-        "kappa":              145,
-    },
-    # M6-M15: semi-detached, build years 1975-2020, U-values from UK Part L regs
-    6: {
-        "label":               "1975 semi, pre-1976 regs",
-        "total_floor_area_m2": 88.0,
-        "storey_height_m":     2.4,
-        "window_area_m2":      14.0,
-        "door_area_m2":         3.6,
-        "u_wall":               0.60,
-        "u_roof":               0.35,
-        "u_floor":              0.70,
-        "u_window":             2.80,
-        "u_door":               3.00,
-        "y_value":              0.15,
-        "q50":                 10.0,
-        "kappa":              170,
-    },
-    7: {
-        "label":               "1980 semi, 1976 regs",
-        "total_floor_area_m2": 88.0,
-        "storey_height_m":     2.4,
-        "window_area_m2":      14.0,
-        "door_area_m2":         3.6,
-        "u_wall":               0.60,
-        "u_roof":               0.35,
-        "u_floor":              0.60,
-        "u_window":             2.80,
-        "u_door":               2.80,
-        "y_value":              0.15,
-        "q50":                 10.0,
-        "kappa":              165,
-    },
-    8: {
-        "label":               "1985 semi, 1985 regs",
-        "total_floor_area_m2": 88.0,
-        "storey_height_m":     2.4,
-        "window_area_m2":      14.0,
-        "door_area_m2":         3.6,
-        "u_wall":               0.60,
-        "u_roof":               0.25,
-        "u_floor":              0.45,
-        "u_window":             2.80,
-        "u_door":               2.80,
-        "y_value":              0.12,
-        "q50":                  9.0,
-        "kappa":              160,
-    },
-    9: {
-        "label":               "1990 semi, Part L 1990",
-        "total_floor_area_m2": 88.0,
-        "storey_height_m":     2.4,
-        "window_area_m2":      15.0,
-        "door_area_m2":         3.6,
-        "u_wall":               0.45,
-        "u_roof":               0.25,
-        "u_floor":              0.45,
-        "u_window":             2.80,
-        "u_door":               2.40,
-        "y_value":              0.11,
-        "q50":                  8.5,
-        "kappa":              158,
-    },
-    10: {
-        "label":               "1995 semi, Part L 1995",
-        "total_floor_area_m2": 88.0,
-        "storey_height_m":     2.4,
-        "window_area_m2":      15.0,
-        "door_area_m2":         3.6,
-        "u_wall":               0.45,
-        "u_roof":               0.20,
-        "u_floor":              0.35,
-        "u_window":             2.00,
-        "u_door":               2.00,
-        "y_value":              0.10,
-        "q50":                  8.0,
-        "kappa":              155,
-    },
-    11: {
-        "label":               "2000 semi, Part L 2000",
-        "total_floor_area_m2": 88.0,
-        "storey_height_m":     2.4,
-        "window_area_m2":      15.0,
-        "door_area_m2":         3.6,
-        "u_wall":               0.35,
-        "u_roof":               0.16,
-        "u_floor":              0.25,
-        "u_window":             1.80,
-        "u_door":               1.80,
-        "y_value":              0.09,
-        "q50":                  7.0,
-        "kappa":              150,
-    },
-    12: {
-        "label":               "2005 semi, Part L 2002",
-        "total_floor_area_m2": 88.0,
-        "storey_height_m":     2.4,
-        "window_area_m2":      15.0,
-        "door_area_m2":         3.6,
-        "u_wall":               0.35,
-        "u_roof":               0.16,
-        "u_floor":              0.25,
-        "u_window":             1.60,
-        "u_door":               1.60,
-        "y_value":              0.08,
-        "q50":                  6.0,
-        "kappa":              150,
-    },
-    13: {
-        "label":               "2010 semi, Part L 2010",
-        "total_floor_area_m2": 88.0,
-        "storey_height_m":     2.4,
-        "window_area_m2":      15.0,
-        "door_area_m2":         3.6,
-        "u_wall":               0.30,
-        "u_roof":               0.13,
-        "u_floor":              0.22,
-        "u_window":             1.60,
-        "u_door":               1.40,
-        "y_value":              0.07,
-        "q50":                  5.0,
-        "kappa":              148,
-    },
-    14: {
-        "label":               "2015 semi, Part L 2013",
-        "total_floor_area_m2": 88.0,
-        "storey_height_m":     2.4,
-        "window_area_m2":      15.0,
-        "door_area_m2":         3.6,
-        "u_wall":               0.28,
-        "u_roof":               0.13,
-        "u_floor":              0.20,
-        "u_window":             1.40,
-        "u_door":               1.20,
-        "y_value":              0.05,
-        "q50":                  4.0,
-        "kappa":              145,
-    },
-    15: {
-        "label":               "2020 semi, Part L 2021",
-        "total_floor_area_m2": 88.0,
-        "storey_height_m":     2.4,
-        "window_area_m2":      15.0,
-        "door_area_m2":         3.6,
-        "u_wall":               0.18,
-        "u_roof":               0.11,
-        "u_floor":              0.13,
-        "u_window":             1.20,
-        "u_door":               1.00,
-        "y_value":              0.04,
-        "q50":                  3.0,
-        "kappa":              140,
-    },
+METER_PARAMS: dict[int, DwellingParams] = {
+    1: create_dwelling("1970s-semi"),
+    2: create_dwelling("1990s-semi"),
+    3: create_dwelling("2005-detached"),
+    4: create_dwelling("pre-1919-terraced"),
+    5: create_dwelling("2015-semi"),
+    # Meters 6-15: era-spanning semis, not named archetypes in the spec
+    6: DwellingParams(
+        label="1975 semi, pre-1976 regs", archetype_id="",
+        total_floor_area_m2=88.0, storey_height_m=2.4,
+        window_area_m2=14.0, door_area_m2=3.6,
+        u_wall=0.60, u_roof=0.35, u_floor=0.70,
+        u_window=2.80, u_door=3.00,
+        y_value=0.15, q50=10.0, kappa=170,
+        sensor_elec_meter=True, sensor_gas_meter=True,
+        sensor_outdoor_temp=True, sensor_wind_speed=True,
+    ),
+    7: DwellingParams(
+        label="1980 semi, 1976 regs", archetype_id="",
+        total_floor_area_m2=88.0, storey_height_m=2.4,
+        window_area_m2=14.0, door_area_m2=3.6,
+        u_wall=0.60, u_roof=0.35, u_floor=0.60,
+        u_window=2.80, u_door=2.80,
+        y_value=0.15, q50=10.0, kappa=165,
+        sensor_elec_meter=True, sensor_gas_meter=True,
+        sensor_outdoor_temp=True, sensor_wind_speed=True,
+    ),
+    8: DwellingParams(
+        label="1985 semi, 1985 regs", archetype_id="",
+        total_floor_area_m2=88.0, storey_height_m=2.4,
+        window_area_m2=14.0, door_area_m2=3.6,
+        u_wall=0.60, u_roof=0.25, u_floor=0.45,
+        u_window=2.80, u_door=2.80,
+        y_value=0.12, q50=9.0, kappa=160,
+        sensor_elec_meter=True, sensor_gas_meter=True,
+        sensor_outdoor_temp=True, sensor_wind_speed=True,
+    ),
+    9: DwellingParams(
+        label="1990 semi, Part L 1990", archetype_id="",
+        total_floor_area_m2=88.0, storey_height_m=2.4,
+        window_area_m2=15.0, door_area_m2=3.6,
+        u_wall=0.45, u_roof=0.25, u_floor=0.45,
+        u_window=2.80, u_door=2.80,
+        y_value=0.12, q50=9.0, kappa=160,
+        sensor_elec_meter=True, sensor_gas_meter=True,
+        sensor_outdoor_temp=True, sensor_wind_speed=True,
+    ),
+    10: DwellingParams(
+        label="1995 semi, Part L 1995", archetype_id="",
+        total_floor_area_m2=88.0, storey_height_m=2.4,
+        window_area_m2=15.0, door_area_m2=3.6,
+        u_wall=0.45, u_roof=0.25, u_floor=0.45,
+        u_window=2.80, u_door=2.80,
+        y_value=0.10, q50=8.0, kappa=158,
+        sensor_elec_meter=True, sensor_gas_meter=True,
+        sensor_outdoor_temp=True, sensor_wind_speed=True,
+    ),
+    11: DwellingParams(
+        label="2000 semi, Part L 2000", archetype_id="",
+        total_floor_area_m2=88.0, storey_height_m=2.4,
+        window_area_m2=15.0, door_area_m2=3.6,
+        u_wall=0.35, u_roof=0.16, u_floor=0.25,
+        u_window=2.00, u_door=2.00,
+        y_value=0.09, q50=7.0, kappa=155,
+        sensor_elec_meter=True, sensor_gas_meter=True,
+        sensor_outdoor_temp=True, sensor_wind_speed=True,
+    ),
+    12: DwellingParams(
+        label="2005 semi, Part L 2002", archetype_id="",
+        total_floor_area_m2=88.0, storey_height_m=2.4,
+        window_area_m2=15.0, door_area_m2=3.6,
+        u_wall=0.35, u_roof=0.16, u_floor=0.25,
+        u_window=1.60, u_door=1.60,
+        y_value=0.08, q50=6.0, kappa=150,
+        sensor_elec_meter=True, sensor_gas_meter=True,
+        sensor_outdoor_temp=True, sensor_wind_speed=True,
+    ),
+    13: DwellingParams(
+        label="2010 semi, Part L 2010", archetype_id="",
+        total_floor_area_m2=88.0, storey_height_m=2.4,
+        window_area_m2=15.0, door_area_m2=3.6,
+        u_wall=0.30, u_roof=0.13, u_floor=0.22,
+        u_window=1.60, u_door=1.40,
+        y_value=0.07, q50=5.0, kappa=148,
+        sensor_elec_meter=True, sensor_gas_meter=True,
+        sensor_outdoor_temp=True, sensor_wind_speed=True,
+    ),
+    14: DwellingParams(
+        label="2015 semi, Part L 2013", archetype_id="",
+        total_floor_area_m2=88.0, storey_height_m=2.4,
+        window_area_m2=15.0, door_area_m2=3.6,
+        u_wall=0.28, u_roof=0.13, u_floor=0.20,
+        u_window=1.40, u_door=1.20,
+        y_value=0.05, q50=4.0, kappa=145,
+        sensor_elec_meter=True, sensor_gas_meter=True,
+        sensor_outdoor_temp=True, sensor_wind_speed=True,
+    ),
+    15: DwellingParams(
+        label="2020 semi, Part L 2021", archetype_id="",
+        total_floor_area_m2=88.0, storey_height_m=2.4,
+        window_area_m2=15.0, door_area_m2=3.6,
+        u_wall=0.18, u_roof=0.11, u_floor=0.13,
+        u_window=1.20, u_door=1.00,
+        y_value=0.04, q50=3.0, kappa=140,
+        sensor_elec_meter=True, sensor_gas_meter=True,
+        sensor_outdoor_temp=True, sensor_wind_speed=True,
+    ),
 }
+
+# Backward-compatible dict-of-dicts for callers that use DWELLING_PARAMS[n]["param"]
+# (tier4_analysis.py, app.py). Do not remove.
+from dataclasses import asdict as _asdict
+DWELLING_PARAMS: dict[int, dict] = {k: _asdict(v) for k, v in METER_PARAMS.items()}
 
 # ---------------------------------------------------------------------------
 # Simulation constants
@@ -275,53 +166,21 @@ DT_HOURS          = 0.5     # half-hour step
 
 def build_dwelling(p: dict) -> dict:
     """
-    Compute derived building quantities from the parameter dict.
-    Returns a dict with HTC (W/K), C (Wh/K), tau (hours), and geometry.
+    Backward-compatible wrapper over derived_quantities().
+    Accepts the same dict format as the old DWELLING_PARAMS entries.
+    Returns the same keys as the original implementation.
+    tier4_analysis.py and app.py use this — do not change the return keys.
     """
-    fa   = p["total_floor_area_m2"]
-    h    = p["storey_height_m"]
-    a_w  = p["window_area_m2"]
-    a_d  = p["door_area_m2"]
-
-    footprint     = fa / 2
-    side          = footprint ** 0.5
-    perimeter     = 4 * side
-    wall_gross    = perimeter * h * 2          # two storeys
-    wall_net      = wall_gross - a_w - a_d
-    roof_area     = footprint
-    floor_area    = footprint
-    envelope_area = wall_gross + roof_area + floor_area
-    volume        = fa * h
-
-    fabric_htc = (
-        p["u_wall"]   * wall_net  +
-        p["u_roof"]   * roof_area +
-        p["u_floor"]  * floor_area +
-        p["u_window"] * a_w +
-        p["u_door"]   * a_d
-    )
-    bridging_htc  = p["y_value"] * envelope_area
-    leakage_50pa  = p["q50"] * envelope_area   # m³/h at 50 Pa
-    n50           = leakage_50pa / volume
-    ach_natural   = n50 / 20
-    vent_htc      = C_AIR * ach_natural * volume
-
-    htc      = fabric_htc + bridging_htc + vent_htc
-    c_wh_k   = p["kappa"] * fa
-    tau      = c_wh_k / htc
-
-    return {
-        "htc":           htc,
-        "c_wh_k":        c_wh_k,
-        "tau_hours":     tau,
-        "fabric_htc":    fabric_htc,
-        "bridging_htc":  bridging_htc,
-        "vent_htc":      vent_htc,
-        "ach_natural":   ach_natural,
-        "envelope_area": envelope_area,
-        "volume":        volume,
-        "wall_net":      wall_net,
-    }
+    fields = DwellingParams.__dataclass_fields__
+    dp = DwellingParams(**{k: v for k, v in p.items() if k in fields})
+    d = derived_quantities(dp)
+    # Remap to the old key names that callers depend on
+    d["c_wh_k"]       = d.pop("c_wh_per_k")
+    d["vent_htc"]      = d.pop("ventilation_htc")
+    d["envelope_area"] = d.pop("envelope_area_m2")
+    d["volume"]        = d.pop("volume_m3")
+    d["wall_net"]      = d.pop("wall_net_m2")
+    return d
 
 
 # ---------------------------------------------------------------------------
@@ -335,12 +194,14 @@ def decay_step(t_indoor: float, t_outdoor: float, tau: float) -> float:
 
 def heating_step(t_indoor: float, t_outdoor: float,
                  gas_kwh_heating: float,
-                 htc: float, c_wh_k: float) -> float:
-    """Heat balance over one half-hour period. Capped at T_SETPOINT."""
-    q_boiler = gas_kwh_heating * BOILER_EFFICIENCY * 1000   # Wh
-    q_loss   = htc * (t_indoor - t_outdoor) * DT_HOURS      # Wh
+                 htc: float, c_wh_k: float,
+                 efficiency: float = BOILER_EFFICIENCY,
+                 t_setpoint: float = T_SETPOINT) -> float:
+    """Heat balance over one half-hour period. Capped at t_setpoint."""
+    q_boiler = gas_kwh_heating * efficiency * 1000
+    q_loss   = htc * (t_indoor - t_outdoor) * DT_HOURS
     delta_t  = (q_boiler - q_loss) / c_wh_k
-    return min(t_indoor + delta_t, T_SETPOINT)
+    return min(t_indoor + delta_t, t_setpoint)
 
 
 # ---------------------------------------------------------------------------
@@ -432,9 +293,12 @@ def simulate(periods: list[dict],
              htc: float,
              c_wh_k: float,
              tau: float,
-             base_load_kwh: float) -> list[dict]:
+             base_load_kwh: float,
+             efficiency: float = BOILER_EFFICIENCY,
+             t_setpoint: float = T_SETPOINT,
+             heat_threshold_kwh: float = HEAT_THRESHOLD_KWH) -> list[dict]:
     results = []
-    t_indoor = T_SETPOINT
+    t_indoor = t_setpoint
 
     for p in periods:
         t_out    = p["outdoor_c"]
@@ -442,15 +306,16 @@ def simulate(periods: list[dict],
         month    = p["month"]
 
         in_summer = month in SUMMER_MONTHS
-        boiler_on = (not in_summer) and (gas_kwh >= HEAT_THRESHOLD_KWH)
+        boiler_on = (not in_summer) and (gas_kwh >= heat_threshold_kwh)
 
         if boiler_on:
             gas_heat = max(gas_kwh - base_load_kwh, 0.0)
-            t_indoor = heating_step(t_indoor, t_out, gas_heat, htc, c_wh_k)
+            t_indoor = heating_step(t_indoor, t_out, gas_heat, htc, c_wh_k,
+                                    efficiency=efficiency,
+                                    t_setpoint=t_setpoint)
         else:
             t_indoor = decay_step(t_indoor, t_out, tau)
 
-        # physical floor: indoor can't fall below outdoor
         t_indoor = max(t_indoor, t_out)
 
         results.append({
@@ -479,10 +344,12 @@ def main():
     summary_rows = []
 
     for meter_num, mpan in METERS.items():
-        params  = DWELLING_PARAMS[meter_num]
-        dwelling = build_dwelling(params)
+        dp       = METER_PARAMS[meter_num]
+        dwelling = derived_quantities(dp)
+        dwelling["c_wh_k"]   = dwelling.pop("c_wh_per_k")
+        dwelling["vent_htc"] = dwelling.pop("ventilation_htc")
 
-        print(f"Meter {meter_num} — {params['label']}")
+        print(f"Meter {meter_num} — {dp.label}")
         print(f"  MPAN      : {mpan}")
         print(f"  HTC       : {dwelling['htc']:.1f} W/K  "
               f"(fabric {dwelling['fabric_htc']:.1f} + "
@@ -506,7 +373,10 @@ def main():
             continue
 
         results = simulate(periods, dwelling["htc"], dwelling["c_wh_k"],
-                           dwelling["tau_hours"], base_load)
+                           dwelling["tau_hours"], base_load,
+                           efficiency=dp.heating_efficiency,
+                           t_setpoint=dp.t_setpoint,
+                           heat_threshold_kwh=dp.heat_threshold_kwh)
 
         out_path = f"data/m{meter_num}_indoor_temp.csv"
         with open(out_path, "w", newline="") as f:
@@ -526,7 +396,7 @@ def main():
 
         summary_rows.append({
             "m":     meter_num,
-            "label": params["label"],
+            "label": dp.label,
             "htc":   dwelling["htc"],
             "tau":   dwelling["tau_hours"],
             "n":     len(results),
