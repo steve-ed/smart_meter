@@ -5,7 +5,6 @@ Wires occupancy, appliance, solar, and forward thermal simulation into
 a single run_simulation() call returning a SimulationResult.
 """
 import csv
-import math
 from dataclasses import dataclass
 from datetime import date
 
@@ -59,6 +58,13 @@ def _flatten_float(series: dict[date, list[float]], dates: list[date]) -> dict[s
 
 
 def load_weather(dates: list[date], weather_path: str = "data/weather.csv") -> WeatherSeries:
+    """
+    Read temp_c and wind_speed_ms from a weather CSV for the given dates.
+
+    weather_path is relative to the process working directory (typically py/).
+    Rows whose date is not in dates are skipped. Rows with unparseable float
+    values are skipped; missing columns raise KeyError immediately.
+    """
     date_strs = {str(d) for d in dates}
     temp_c: dict[str, float] = {}
     wind_ms: dict[str, float] = {}
@@ -70,6 +76,6 @@ def load_weather(dates: list[date], weather_path: str = "data/weather.csv") -> W
             try:
                 temp_c[ts] = float(row["temp_c"])
                 wind_ms[ts] = float(row["wind_speed_ms"])
-            except (ValueError, KeyError):
+            except ValueError:
                 pass
     return WeatherSeries(outdoor_temp_c=temp_c, wind_speed_ms=wind_ms)
