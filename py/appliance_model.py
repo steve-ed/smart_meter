@@ -101,7 +101,7 @@ def generate_appliance_signal(
         n_whole = int(freq)
         n_events = n_whole + (1 if rng.random() < (freq - n_whole) else 0)
 
-        if n_events >= len(available):
+        if not params.occupancy_correlated and n_events >= len(available):
             # High-frequency appliance (e.g. fridge): distribute total energy evenly.
             total_energy = energy_per_event * freq
             per_slot = total_energy / len(available)
@@ -111,10 +111,11 @@ def generate_appliance_signal(
             max_start = 48 - event_slots
             for _ in range(n_events):
                 valid = [s for s in available if s <= max_start]
-                start = rng.choice(valid if valid else available)
+                if not valid:
+                    continue  # no non-truncating start available; skip this event
+                start = rng.choice(valid)
                 for k in range(event_slots):
-                    if start + k < 48:
-                        slots[start + k] += energy_per_slot
+                    slots[start + k] += energy_per_slot
 
         result[d] = slots
 
