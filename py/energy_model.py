@@ -252,7 +252,7 @@ def create_dwelling(archetype_id: str, **overrides) -> DwellingParams:
     return DwellingParams(**params)
 
 
-_TIER_SENSORS: dict[int, frozenset] = {
+_TIER_SENSORS: dict[int, frozenset[str]] = {
     1: frozenset({
         "sensor_elec_meter", "sensor_gas_meter",
     }),

@@ -236,3 +236,17 @@ def test_validate_unknown_tier_raises():
     p = create_dwelling("1970s-semi")
     with pytest.raises(ValueError, match="Unknown tier"):
         validate_sensor_tier(p, 99)
+
+
+def test_validate_tier3_fails_without_occupancy():
+    """Tier 3 requires occupancy sensor; archetypes don't have it by default."""
+    p = create_dwelling("1970s-semi")  # sensor_occupancy=False by default
+    ok, missing = validate_sensor_tier(p, 3)
+    assert not ok
+    assert "sensor_occupancy" in missing
+
+
+def test_validate_tier3_passes_with_occupancy():
+    p = create_dwelling("1970s-semi", sensor_occupancy=True)
+    ok, missing = validate_sensor_tier(p, 3)
+    assert ok, f"Unexpected missing: {missing}"
