@@ -169,6 +169,97 @@ def apply_noise(
     return out
 
 
+def kalman_smooth_series(
+    observations: list[float],
+    process_sigma: float,
+    measurement_sigma: float,
+) -> list[float]:
+    """
+    RTS Kalman smoother for a 1D time series (random-walk state model).
+
+    process_sigma     : expected std dev of true value change per time step
+    measurement_sigma : sensor noise std dev (matches noise applied earlier)
+
+    NaN observations skip the update step — the filter coasts on the prediction.
+    Returns a list of smoothed values the same length as observations.
+    """
+    n = len(observations)
+    if n == 0:
+        return []
+
+    Q = process_sigma ** 2
+    R = measurement_sigma ** 2
+
+    x_f = [0.0] * n   # filtered mean
+    P_f = [0.0] * n   # filtered variance
+    x_p = [0.0] * n   # predicted mean
+    P_p = [0.0] * n   # predicted variance
+
+    # Forward pass — initialise from first valid observation
+    first = next((v for v in observations if v == v), 0.0)
+    x_f[0] = first
+    P_f[0] = R
+
+    for k in range(1, n):
+        x_p[k] = x_f[k - 1]
+        P_p[k] = P_f[k - 1] + Q
+        z = observations[k]
+        if z != z:          # NaN: skip update, coast on prediction
+            x_f[k] = x_p[k]
+            P_f[k] = P_p[k]
+        else:
+            K       = P_p[k] / (P_p[k] + R)
+            x_f[k]  = x_p[k] + K * (z - x_p[k])
+            P_f[k]  = (1.0 - K) * P_p[k]
+
+    # Backward RTS smoother pass
+    x_s = list(x_f)
+    P_s = list(P_f)
+
+    for k in range(n - 2, -1, -1):
+        G      = P_f[k] / P_p[k + 1]
+        x_s[k] = x_f[k] + G * (x_s[k + 1] - x_p[k + 1])
+        P_s[k] = P_f[k] + G * (P_s[k + 1] - P_p[k + 1]) * G
+
+    return x_s
+
+
+def smooth_observations(
+    rows: list[dict],
+    indoor_process_sigma: float = 0.05,
+    outdoor_process_sigma: float = 0.30,
+    indoor_measurement_sigma: float = 0.20,
+    outdoor_measurement_sigma: float = 0.30,
+) -> list[dict]:
+    """
+    Apply RTS Kalman smoother to indoor_temp_c and outdoor_temp_c observation
+    columns. Returns new rows with 'indoor_temp_c_smooth' and
+    'outdoor_temp_c_smooth' keys added.
+
+    Default process_sigma values reflect physical constraints:
+      indoor  0.05°C/slot — slow change, dominated by thermal mass
+      outdoor 0.30°C/slot — weather changes faster but still smooth
+    """
+    indoor_smooth = kalman_smooth_series(
+        [r["indoor_temp_c"] for r in rows],
+        process_sigma=indoor_process_sigma,
+        measurement_sigma=indoor_measurement_sigma,
+    )
+    outdoor_smooth = kalman_smooth_series(
+        [r["outdoor_temp_c"] for r in rows],
+        process_sigma=outdoor_process_sigma,
+        measurement_sigma=outdoor_measurement_sigma,
+    )
+    return [
+        {
+            **r,
+            "indoor_temp_c_smooth":  round(si, 3),
+            "outdoor_temp_c_smooth": round(so, 3),
+        }
+        for r, si, so in zip(rows, indoor_smooth, outdoor_smooth)
+    ]
+
+
 def write_observations(rows: list[dict], path: str) -> None:
     """Write noisy observations to CSV in the same column order as ground truth."""
     with open(path, "w", newline="") as f:

@@ -11,7 +11,9 @@ from sensor_model import (
     TemperatureNoise,
     WindNoise,
     apply_noise,
+    kalman_smooth_series,
     load_ground_truth,
+    smooth_observations,
     write_observations,
     _add_temp_noise,
     _add_energy_noise,
@@ -239,6 +241,87 @@ class TestApplyNoise:
         assert out[0]["electricity_kwh"] == pytest.approx(0.25)
         assert out[0]["gas_kwh"] == pytest.approx(1.50)
         assert out[0]["occupancy"] is True
+
+
+# ---------------------------------------------------------------------------
+# Kalman smoother
+# ---------------------------------------------------------------------------
+
+class TestKalmanSmoothSeries:
+    def test_empty_returns_empty(self):
+        assert kalman_smooth_series([], 0.1, 0.2) == []
+
+    def test_single_value_returns_single_value(self):
+        result = kalman_smooth_series([5.0], 0.1, 0.2)
+        assert len(result) == 1
+        assert result[0] == pytest.approx(5.0, abs=0.01)
+
+    def test_output_length_matches_input(self):
+        obs = [float(i) for i in range(20)]
+        result = kalman_smooth_series(obs, 0.1, 0.2)
+        assert len(result) == 20
+
+    def test_constant_series_returns_constant(self):
+        obs = [10.0] * 100
+        result = kalman_smooth_series(obs, 0.05, 0.2)
+        for v in result:
+            assert abs(v - 10.0) < 0.01
+
+    def test_smoother_reduces_noise_variance(self):
+        rng = random.Random(42)
+        truth = [15.0] * 500
+        noisy = [t + rng.gauss(0.0, 0.2) for t in truth]
+        smoothed = kalman_smooth_series(noisy, 0.05, 0.2)
+        assert statistics.stdev(smoothed) < statistics.stdev(noisy)
+
+    def test_smoother_preserves_mean(self):
+        rng = random.Random(42)
+        truth = [15.0] * 500
+        noisy = [t + rng.gauss(0.0, 0.2) for t in truth]
+        smoothed = kalman_smooth_series(noisy, 0.05, 0.2)
+        assert abs(statistics.mean(smoothed) - 15.0) < 0.05
+
+    def test_nan_observation_does_not_corrupt_output(self):
+        obs = [10.0] * 5 + [float("nan")] + [10.0] * 5
+        result = kalman_smooth_series(obs, 0.1, 0.2)
+        assert len(result) == 11
+        assert all(v == v for v in result)   # no NaN in output
+
+    def test_low_process_sigma_gives_heavier_smoothing(self):
+        rng = random.Random(1)
+        noisy = [10.0 + rng.gauss(0.0, 1.0) for _ in range(200)]
+        heavy  = kalman_smooth_series(noisy, process_sigma=0.01, measurement_sigma=1.0)
+        light  = kalman_smooth_series(noisy, process_sigma=1.0,  measurement_sigma=1.0)
+        assert statistics.stdev(heavy) < statistics.stdev(light)
+
+
+class TestSmoothObservations:
+    def test_adds_smooth_keys(self):
+        rows = [_make_row()]
+        out = smooth_observations(apply_noise(rows, seed=0))
+        assert "indoor_temp_c_smooth" in out[0]
+        assert "outdoor_temp_c_smooth" in out[0]
+
+    def test_preserves_existing_keys(self):
+        rows = [_make_row()]
+        obs = apply_noise(rows, seed=0)
+        out = smooth_observations(obs)
+        for key in obs[0]:
+            assert key in out[0]
+
+    def test_output_length_unchanged(self):
+        rows = _many_rows(50)
+        obs = apply_noise(rows, seed=0)
+        out = smooth_observations(obs)
+        assert len(out) == 50
+
+    def test_smooth_reduces_indoor_temp_variance(self):
+        rows = _many_rows(500, indoor_temp_c=18.0)
+        obs = apply_noise(rows, seed=42)
+        out = smooth_observations(obs)
+        raw_std    = statistics.stdev(r["indoor_temp_c"] for r in obs)
+        smooth_std = statistics.stdev(r["indoor_temp_c_smooth"] for r in out)
+        assert smooth_std < raw_std
 
 
 # ---------------------------------------------------------------------------
