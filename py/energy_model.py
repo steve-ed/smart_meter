@@ -69,3 +69,55 @@ class DwellingParams:
     # ---- Metadata ----
     label: str = ""
     archetype_id: str = ""
+
+
+_C_AIR = 0.33  # Wh/m³K — volumetric heat capacity of air
+
+
+def derived_quantities(p: DwellingParams) -> dict:
+    """Compute HTC, tau, and envelope geometry from a DwellingParams instance."""
+    footprint = p.total_floor_area_m2 / 2.0
+    aspect = p.plan_aspect_ratio
+    width = (footprint / aspect) ** 0.5
+    length = width * aspect
+    perimeter = 2.0 * (length + width)
+    wall_gross = perimeter * p.storey_height_m * 2.0
+    wall_net = wall_gross - p.window_area_m2 - p.door_area_m2
+    roof_area = footprint
+    floor_area = footprint
+    envelope_area = wall_gross + roof_area + floor_area
+    volume = p.total_floor_area_m2 * p.storey_height_m
+
+    fabric_htc = (
+        p.u_wall   * wall_net +
+        p.u_roof   * roof_area +
+        p.u_floor  * floor_area +
+        p.u_window * p.window_area_m2 +
+        p.u_door   * p.door_area_m2
+    )
+    bridging_htc = p.y_value * envelope_area
+    leakage_50pa = p.q50 * envelope_area
+    n50 = leakage_50pa / volume
+    ach_natural = n50 / 20.0
+    ventilation_htc = _C_AIR * ach_natural * volume
+
+    htc = fabric_htc + bridging_htc + ventilation_htc
+    c_wh_per_k = p.kappa * p.total_floor_area_m2
+    tau_hours = c_wh_per_k / htc
+
+    return {
+        "footprint_m2":     footprint,
+        "wall_gross_m2":    wall_gross,
+        "wall_net_m2":      wall_net,
+        "roof_area_m2":     roof_area,
+        "floor_area_m2":    floor_area,
+        "envelope_area_m2": envelope_area,
+        "volume_m3":        volume,
+        "ach_natural":      ach_natural,
+        "fabric_htc":       fabric_htc,
+        "bridging_htc":     bridging_htc,
+        "ventilation_htc":  ventilation_htc,
+        "htc":              htc,
+        "c_wh_per_k":       c_wh_per_k,
+        "tau_hours":        tau_hours,
+    }
