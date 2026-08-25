@@ -110,13 +110,18 @@ def forward_simulate(
     dp: DwellingParams,
     dates: list[date],
     weather: WeatherSeries,
+    internal_gains: dict[str, float] | None = None,
 ) -> tuple[dict[str, float], dict[str, float], dict[str, bool]]:
     """
     Generate synthetic indoor_temp_c, gas_kwh, boiler_on from dwelling physics.
 
-    Space heating fires when the decayed indoor temperature would fall below
-    dp.t_setpoint during heating months (Oct–Apr).  Gas per slot is
-    space-heating gas + dp.base_load_kwh_per_period.
+    Space heating fires when the temperature after decay and internal gains would
+    fall below the active setpoint during heating months (Oct–Apr).  Gas per slot
+    is space-heating gas + dp.base_load_kwh_per_period.
+
+    internal_gains: optional timestamp-keyed dict of kWh of heat added to the
+    dwelling per slot (e.g. from appliances). Applied after decay, before the
+    boiler deficit calculation. When None, no internal gains are modelled.
 
     If a timestamp is absent from weather.outdoor_temp_c, outdoor temperature
     defaults to the current indoor temperature (zero heat loss for that slot).
@@ -151,17 +156,19 @@ def forward_simulate(
             setpoint = setpoint_sched[slot] if setpoint_sched is not None else dp.t_setpoint
 
             t_decay = decay_step(t_indoor, t_out, tau)
+            gain_wh = (internal_gains.get(ts, 0.0) if internal_gains else 0.0) * 1000.0
+            t_after_gains = t_decay + gain_wh / c_wh_per_k
 
-            if in_heating and t_decay < setpoint:
-                heat_needed_wh = (setpoint - t_decay) * c_wh_per_k
+            if in_heating and t_after_gains < setpoint:
+                heat_needed_wh = (setpoint - t_after_gains) * c_wh_per_k
                 gas_heat_kwh = heat_needed_wh / (dp.heating_efficiency * 1000.0)
                 if dp.boiler_max_kw > 0.0:
                     gas_heat_kwh = min(gas_heat_kwh, dp.boiler_max_kw * 0.5)
                 heat_delivered_wh = gas_heat_kwh * dp.heating_efficiency * 1000.0
-                t_indoor = min(t_decay + heat_delivered_wh / c_wh_per_k, setpoint)
+                t_indoor = min(t_after_gains + heat_delivered_wh / c_wh_per_k, setpoint)
                 boiler_on = True
             else:
-                t_indoor = max(t_decay, t_out)
+                t_indoor = max(t_after_gains, t_out)
                 gas_heat_kwh = 0.0
                 boiler_on = False
 
@@ -198,7 +205,11 @@ def run_simulation(
         appliances, dates, occupancy_states,
         seed=seed, occupant_count=dp.occupant_count,
     )
-    indoor_temp, gas, boiler_on = forward_simulate(dp, dates, weather)
+    elec_flat = _flatten_float(elec_by_date, dates)
+    gains: dict[str, float] | None = None
+    if dp.internal_gains_fraction > 0.0:
+        gains = {ts: v * dp.internal_gains_fraction for ts, v in elec_flat.items()}
+    indoor_temp, gas, boiler_on = forward_simulate(dp, dates, weather, internal_gains=gains)
     solar_by_date = generate_solar_profile(
         dp, lat=lat, lon=lon, year=pvgis_year, cache_dir=pvgis_cache_dir,
     )

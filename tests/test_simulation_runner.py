@@ -351,6 +351,60 @@ def test_boiler_cap_indoor_never_exceeds_setpoint():
         assert t <= dp.t_setpoint + 1e-6
 
 
+# --- internal gains tests ---
+
+def test_internal_gains_reduce_winter_gas():
+    """Internal gains from appliances must reduce boiler gas demand."""
+    dp = create_dwelling("1970s-semi")
+    dates = [date(2024, 1, 15)]
+    weather = _make_weather(dates, temp_c=3.0)
+    _, gas_no_gains, _ = forward_simulate(dp, dates, weather, internal_gains=None)
+    gains = {_ts(dates[0], s): 0.5 for s in range(48)}  # 0.5 kWh/slot constant gain
+    _, gas_with_gains, _ = forward_simulate(dp, dates, weather, internal_gains=gains)
+    assert sum(gas_with_gains.values()) < sum(gas_no_gains.values())
+
+
+def test_internal_gains_none_matches_no_gains():
+    """internal_gains=None must produce identical results to gains of zero."""
+    dp = create_dwelling("1990s-semi")
+    dates = [date(2024, 1, 10)]
+    weather = _make_weather(dates, temp_c=6.0)
+    i1, g1, b1 = forward_simulate(dp, dates, weather, internal_gains=None)
+    zero_gains = {_ts(dates[0], s): 0.0 for s in range(48)}
+    i2, g2, b2 = forward_simulate(dp, dates, weather, internal_gains=zero_gains)
+    assert g1 == g2
+    assert i1 == i2
+
+
+def test_internal_gains_raise_summer_indoor_temp():
+    """In summer, internal gains should raise indoor temperature above outdoor."""
+    dp = create_dwelling("1990s-semi")
+    dates = [date(2024, 7, 15)]
+    weather = _make_weather(dates, temp_c=18.0)
+    indoor_no_gains, _, _ = forward_simulate(dp, dates, weather, internal_gains=None)
+    gains = {_ts(dates[0], s): 0.3 for s in range(48)}
+    indoor_with_gains, _, _ = forward_simulate(dp, dates, weather, internal_gains=gains)
+    avg_no = sum(indoor_no_gains.values()) / 48
+    avg_with = sum(indoor_with_gains.values()) / 48
+    assert avg_with > avg_no
+
+
+def test_internal_gains_fraction_zero_passes_no_gains(tmp_path):
+    """internal_gains_fraction=0.0 in run_simulation must pass gains=None to forward_simulate."""
+    dp = create_dwelling("1970s-semi", internal_gains_fraction=0.0)
+    dp_default = create_dwelling("1970s-semi", internal_gains_fraction=0.0)
+    dates = _winter_week()
+    path = _write_weather_csv(tmp_path, dates)
+    result = run_simulation(dp, dates, weather_path=path)
+    # With zero gains fraction, gas must equal the no-gains forward_simulate result
+    weather_obj = WeatherSeries(
+        outdoor_temp_c={_ts(d, s): 6.0 for d in dates for s in range(48)},
+        wind_speed_ms={_ts(d, s): 3.0 for d in dates for s in range(48)},
+    )
+    _, gas_ref, _ = forward_simulate(dp_default, dates, weather_obj, internal_gains=None)
+    assert result.gas_kwh == gas_ref
+
+
 def test_invalid_schedule_length_raises():
     """A schedule with wrong length must raise ValueError."""
     dp = create_dwelling("1970s-semi", t_setpoint_schedule=[20.0] * 24)
