@@ -16,6 +16,7 @@ import csv
 import math
 import os
 from collections import defaultdict
+from dataclasses import asdict as _asdict
 
 from config import (
     GAS_KWH_PER_M3,
@@ -145,14 +146,12 @@ METER_PARAMS: dict[int, DwellingParams] = {
 
 # Backward-compatible dict-of-dicts for callers that use DWELLING_PARAMS[n]["param"]
 # (tier4_analysis.py, app.py). Do not remove.
-from dataclasses import asdict as _asdict
 DWELLING_PARAMS: dict[int, dict] = {k: _asdict(v) for k, v in METER_PARAMS.items()}
 
 # ---------------------------------------------------------------------------
 # Simulation constants
 # ---------------------------------------------------------------------------
 
-C_AIR             = 0.33    # Wh/m³K  volumetric heat capacity of air
 BOILER_EFFICIENCY = 0.89    # condensing gas boiler
 T_SETPOINT        = 20.0    # °C  thermostat setpoint
 HEAT_THRESHOLD_KWH = 0.15   # kWh/period — above this = space heating active
