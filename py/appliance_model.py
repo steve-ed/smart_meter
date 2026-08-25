@@ -1,9 +1,7 @@
-import math
-import random
 from dataclasses import dataclass
 from datetime import date
 
-_SUMMER_MONTHS: frozenset[int] = frozenset({6, 7, 8})
+_SUMMER_MONTHS: frozenset[int] = frozenset({6, 7, 8})  # meteorological summer; home_model uses broader May–Sep thermal season
 
 
 @dataclass

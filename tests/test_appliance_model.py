@@ -1,5 +1,5 @@
 import pytest
-from datetime import date, timedelta
+from datetime import date
 from appliance_model import (
     ApplianceParams,
     DEFAULT_APPLIANCES,
