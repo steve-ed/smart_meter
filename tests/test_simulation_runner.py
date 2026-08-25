@@ -14,7 +14,9 @@ from simulation_runner import (
     _flatten_bool,
     _flatten_float,
     load_weather,
+    forward_simulate,
 )
+from energy_model import create_dwelling
 
 
 def test_ts_formats_midnight():
@@ -80,3 +82,80 @@ def test_weather_series_has_expected_fields():
     ws = WeatherSeries(outdoor_temp_c={"ts": 5.0}, wind_speed_ms={"ts": 3.2})
     assert ws.outdoor_temp_c["ts"] == 5.0
     assert ws.wind_speed_ms["ts"] == 3.2
+
+
+def _make_weather(dates, temp_c, wind_ms=3.0):
+    """Build a WeatherSeries with constant values for all slots and all dates."""
+    t = {_ts(d, s): temp_c for d in dates for s in range(48)}
+    w = {_ts(d, s): wind_ms for d in dates for s in range(48)}
+    return WeatherSeries(outdoor_temp_c=t, wind_speed_ms=w)
+
+
+def test_forward_simulate_winter_boiler_fires():
+    """In January at 5°C outdoor, boiler must fire to maintain setpoint."""
+    dp = create_dwelling("1970s-semi")
+    dates = [date(2024, 1, 15)]
+    weather = _make_weather(dates, temp_c=5.0)
+    indoor, gas, boiler = forward_simulate(dp, dates, weather)
+    assert any(boiler.values()), "Boiler should fire in January at 5°C"
+
+
+def test_forward_simulate_summer_no_space_heating():
+    """In July at 18°C outdoor, gas equals base_load only on every slot."""
+    dp = create_dwelling("1990s-semi")
+    dates = [date(2024, 7, 15)]
+    weather = _make_weather(dates, temp_c=18.0)
+    indoor, gas, boiler = forward_simulate(dp, dates, weather)
+    assert not any(boiler.values()), "Boiler should not fire in July"
+    for ts, kwh in gas.items():
+        assert kwh == pytest.approx(dp.base_load_kwh_per_period)
+
+
+def test_forward_simulate_gas_at_least_base_load():
+    """Winter gas must be >= base_load_kwh_per_period on every slot."""
+    dp = create_dwelling("pre-1919-terraced")
+    dates = [date(2024, 12, 21)]
+    weather = _make_weather(dates, temp_c=2.0)
+    indoor, gas, boiler = forward_simulate(dp, dates, weather)
+    for ts, kwh in gas.items():
+        assert kwh >= dp.base_load_kwh_per_period - 1e-9
+
+
+def test_forward_simulate_indoor_temp_not_below_outdoor():
+    """Indoor temperature must never fall below outdoor temperature."""
+    dp = create_dwelling("2015-semi")
+    dates = [date(2024, 2, 1)]
+    weather = _make_weather(dates, temp_c=-5.0)
+    indoor, gas, boiler = forward_simulate(dp, dates, weather)
+    for ts, t in indoor.items():
+        assert t >= -5.0 - 1e-6, f"Indoor {t:.2f}°C below outdoor -5°C at {ts}"
+
+
+def test_forward_simulate_indoor_temp_not_above_setpoint():
+    """Indoor temperature must not exceed t_setpoint."""
+    dp = create_dwelling("1970s-semi")
+    dates = [date(2024, 1, 15)]
+    weather = _make_weather(dates, temp_c=5.0)
+    indoor, gas, boiler = forward_simulate(dp, dates, weather)
+    for ts, t in indoor.items():
+        assert t <= dp.t_setpoint + 1e-6, f"Indoor {t:.2f}°C exceeds setpoint {dp.t_setpoint}"
+
+
+def test_forward_simulate_returns_48_slots_per_day():
+    dp = create_dwelling("1970s-semi")
+    dates = [date(2024, 3, 1), date(2024, 3, 2)]
+    weather = _make_weather(dates, temp_c=8.0)
+    indoor, gas, boiler = forward_simulate(dp, dates, weather)
+    assert len(indoor) == 96
+    assert len(gas) == 96
+    assert len(boiler) == 96
+
+
+def test_forward_simulate_reproducible():
+    dp = create_dwelling("1990s-semi")
+    dates = [date(2024, 1, 10)]
+    weather = _make_weather(dates, temp_c=6.0)
+    r1_indoor, r1_gas, r1_boiler = forward_simulate(dp, dates, weather)
+    r2_indoor, r2_gas, r2_boiler = forward_simulate(dp, dates, weather)
+    assert r1_indoor == r2_indoor
+    assert r1_gas == r2_gas

@@ -79,3 +79,53 @@ def load_weather(dates: list[date], weather_path: str = "data/weather.csv") -> W
             except ValueError:
                 pass
     return WeatherSeries(outdoor_temp_c=temp_c, wind_speed_ms=wind_ms)
+
+
+_HEATING_MONTHS: frozenset[int] = frozenset({10, 11, 12, 1, 2, 3, 4})
+
+
+def forward_simulate(
+    dp: DwellingParams,
+    dates: list[date],
+    weather: WeatherSeries,
+) -> tuple[dict[str, float], dict[str, float], dict[str, bool]]:
+    """
+    Generate synthetic indoor_temp_c, gas_kwh, boiler_on from dwelling physics.
+
+    Space heating fires when the decayed indoor temperature would fall below
+    dp.t_setpoint during heating months (Oct–Apr).  Gas per slot is
+    space-heating gas + dp.base_load_kwh_per_period.
+    """
+    dq = derived_quantities(dp)
+    tau = dq["tau_hours"]
+    c_wh_per_k = dq["c_wh_per_k"]
+
+    indoor_temp: dict[str, float] = {}
+    gas_out: dict[str, float] = {}
+    boiler_out: dict[str, bool] = {}
+
+    t_indoor = dp.t_setpoint
+
+    for d in dates:
+        in_heating = d.month in _HEATING_MONTHS
+        for slot in range(48):
+            ts = _ts(d, slot)
+            t_out = weather.outdoor_temp_c.get(ts, t_indoor)
+
+            t_decay = decay_step(t_indoor, t_out, tau)
+
+            if in_heating and t_decay < dp.t_setpoint:
+                heat_needed_wh = (dp.t_setpoint - t_decay) * c_wh_per_k
+                gas_heat_kwh = heat_needed_wh / (dp.heating_efficiency * 1000.0)
+                t_indoor = dp.t_setpoint
+                boiler_on = True
+            else:
+                t_indoor = max(t_decay, t_out)
+                gas_heat_kwh = 0.0
+                boiler_on = False
+
+            indoor_temp[ts] = round(t_indoor, 3)
+            gas_out[ts] = gas_heat_kwh + dp.base_load_kwh_per_period
+            boiler_out[ts] = boiler_on
+
+    return indoor_temp, gas_out, boiler_out
