@@ -173,8 +173,7 @@ def _write_weather_csv(tmp_path, dates, temp_c=6.0, wind_ms=3.0):
     rows = ["timestamp,temp_c,wind_speed_ms,is_forecast"]
     for d in dates:
         for slot in range(48):
-            h, m = divmod(slot, 2)
-            ts = f"{d} {h:02d}:{m * 30:02d}"
+            ts = _ts(d, slot)
             rows.append(f"{ts},{temp_c},{wind_ms},0")
     p = tmp_path / "weather.csv"
     p.write_text("\n".join(rows))
@@ -225,7 +224,7 @@ def test_run_simulation_solar_present_when_configured(tmp_path):
         pvgis_year=2020, pvgis_cache_dir="data",
     )
     assert result.solar_kwh is not None
-    assert len(result.solar_kwh) == 48
+    assert len(result.solar_kwh) == len(dates) * 48
 
 
 def test_run_simulation_occupancy_slot_0_is_true(tmp_path):

@@ -5,6 +5,7 @@ Wires occupancy, appliance, solar, and forward thermal simulation into
 a single run_simulation() call returning a SimulationResult.
 """
 import csv
+import warnings
 from dataclasses import dataclass
 from datetime import date
 
@@ -77,7 +78,7 @@ def load_weather(dates: list[date], weather_path: str = "data/weather.csv") -> W
                 temp_c[ts] = float(row["temp_c"])
                 wind_ms[ts] = float(row["wind_speed_ms"])
             except ValueError:
-                pass
+                warnings.warn(f"load_weather: skipping row with unparseable values at {ts}")
     return WeatherSeries(outdoor_temp_c=temp_c, wind_speed_ms=wind_ms)
 
 
@@ -101,6 +102,11 @@ def forward_simulate(
     defaults to the current indoor temperature (zero heat loss for that slot).
     """
     dq = derived_quantities(dp)
+    if dq["htc"] <= 0.0:
+        raise ValueError(
+            "DwellingParams has zero or negative HTC — check that U-values and q50 are set. "
+            "Use create_dwelling() or set all fabric parameters."
+        )
     tau = dq["tau_hours"]
     c_wh_per_k = dq["c_wh_per_k"]
 
