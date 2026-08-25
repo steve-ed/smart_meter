@@ -250,3 +250,43 @@ def create_dwelling(archetype_id: str, **overrides) -> DwellingParams:
     params = dict(ARCHETYPES[archetype_id])
     params.update(overrides)
     return DwellingParams(**params)
+
+
+_TIER_SENSORS: dict[int, frozenset] = {
+    1: frozenset({
+        "sensor_elec_meter", "sensor_gas_meter",
+    }),
+    2: frozenset({
+        "sensor_elec_meter", "sensor_gas_meter",
+        "sensor_outdoor_temp", "sensor_wind_speed",
+    }),
+    3: frozenset({
+        "sensor_elec_meter", "sensor_gas_meter",
+        "sensor_outdoor_temp", "sensor_wind_speed",
+        "sensor_occupancy",
+    }),
+    4: frozenset({
+        "sensor_elec_meter", "sensor_gas_meter",
+        "sensor_outdoor_temp", "sensor_wind_speed",
+        "sensor_occupancy", "sensor_indoor_temp",
+    }),
+    5: frozenset({
+        "sensor_elec_meter", "sensor_gas_meter",
+        "sensor_outdoor_temp", "sensor_wind_speed",
+        "sensor_occupancy", "sensor_indoor_temp",
+        "sensor_solar_generation", "sensor_battery_state",
+    }),
+}
+
+
+def validate_sensor_tier(p: DwellingParams, tier: int) -> tuple[bool, list[str]]:
+    """
+    Check whether a dwelling meets the sensor prerequisite for a given tier.
+
+    Returns (ok, missing) where ok is True when all required sensors are
+    present and missing is the list of sensor field names that are False.
+    """
+    if tier not in _TIER_SENSORS:
+        raise ValueError(f"Unknown tier {tier}. Valid: {sorted(_TIER_SENSORS)}")
+    missing = sorted(s for s in _TIER_SENSORS[tier] if not getattr(p, s))
+    return len(missing) == 0, missing

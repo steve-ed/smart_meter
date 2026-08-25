@@ -1,5 +1,5 @@
 import pytest
-from energy_model import ARCHETYPES, DwellingParams, create_dwelling, derived_quantities
+from energy_model import ARCHETYPES, DwellingParams, create_dwelling, derived_quantities, validate_sensor_tier
 
 
 def test_dwelling_params_requires_geometry():
@@ -175,3 +175,64 @@ def test_archetype_meter4_pre1919():
     assert p.u_wall == 1.70
     assert p.storey_height_m == 2.7
     assert p.kappa == 220
+
+
+def test_validate_tier1_passes_all_archetypes():
+    """All archetypes have elec + gas meter sensors by default."""
+    for arch_id in ARCHETYPES:
+        p = create_dwelling(arch_id)
+        ok, missing = validate_sensor_tier(p, 1)
+        assert ok, f"{arch_id} failed tier 1: missing {missing}"
+
+
+def test_validate_tier2_passes_all_archetypes():
+    """All archetypes have outdoor_temp + wind_speed sensors by default."""
+    for arch_id in ARCHETYPES:
+        p = create_dwelling(arch_id)
+        ok, missing = validate_sensor_tier(p, 2)
+        assert ok, f"{arch_id} failed tier 2: missing {missing}"
+
+
+def test_validate_tier4_fails_without_indoor_temp():
+    p = create_dwelling("1970s-semi")  # no indoor_temp sensor
+    ok, missing = validate_sensor_tier(p, 4)
+    assert not ok
+    assert "sensor_indoor_temp" in missing
+
+
+def test_validate_tier4_fails_without_occupancy():
+    p = create_dwelling("1970s-semi", sensor_indoor_temp=True)
+    ok, missing = validate_sensor_tier(p, 4)
+    assert not ok
+    assert "sensor_occupancy" in missing
+
+
+def test_validate_tier4_passes_with_all_sensors():
+    p = create_dwelling("1970s-semi",
+                        sensor_occupancy=True,
+                        sensor_indoor_temp=True)
+    ok, missing = validate_sensor_tier(p, 4)
+    assert ok, f"Unexpected missing: {missing}"
+
+
+def test_validate_missing_returns_list():
+    p = create_dwelling("1970s-semi")
+    ok, missing = validate_sensor_tier(p, 4)
+    assert isinstance(missing, list)
+    assert len(missing) > 0
+
+
+def test_validate_tier5_missing_solar_and_battery():
+    p = create_dwelling("1970s-semi",
+                        sensor_occupancy=True,
+                        sensor_indoor_temp=True)
+    ok, missing = validate_sensor_tier(p, 5)
+    assert not ok
+    assert "sensor_solar_generation" in missing
+    assert "sensor_battery_state" in missing
+
+
+def test_validate_unknown_tier_raises():
+    p = create_dwelling("1970s-semi")
+    with pytest.raises(ValueError, match="Unknown tier"):
+        validate_sensor_tier(p, 99)
