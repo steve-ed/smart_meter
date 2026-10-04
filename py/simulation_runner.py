@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from energy_model import DwellingParams, derived_quantities
+from weather import weather_path_for_postcode
 from home_model import decay_step
 from occupancy_model import DEFAULT_SCHEDULE, OccupancySchedule, generate_occupancy, generate_occupancy_states
 from appliance_model import DEFAULT_APPLIANCES, ApplianceParams, generate_electricity_profile
@@ -113,6 +114,7 @@ def forward_simulate(
     weather: WeatherSeries,
     internal_gains: dict[str, float] | None = None,
     htc_scale: float = 1.0,
+    solar_irradiance: dict[str, dict[str, float]] | None = None,
 ) -> tuple[dict[str, float], dict[str, float], dict[str, bool]]:
     """
     Generate synthetic indoor_temp_c, gas_kwh, boiler_on from dwelling physics.
@@ -163,6 +165,16 @@ def forward_simulate(
 
             t_decay = decay_step(t_indoor, t_out, tau)
             gain_wh = (internal_gains.get(ts, 0.0) if internal_gains else 0.0) * 1000.0
+            if (solar_irradiance is not None
+                    and dp.window_orientation
+                    and dp.true_solar_g_value > 0.0):
+                orient_irr = solar_irradiance.get(ts, {})
+                solar_gain_kwh = sum(
+                    orient_irr.get(o, 0.0) * dp.window_area_m2 * frac
+                    * dp.true_solar_g_value * 0.5 / 1000.0
+                    for o, frac in dp.window_orientation.items()
+                )
+                gain_wh += solar_gain_kwh * 1000.0
             t_after_gains = t_decay + gain_wh / c_wh_per_k
 
             if in_heating and t_after_gains < setpoint:
@@ -192,6 +204,7 @@ def forward_simulate_two_zone(
     internal_gains: dict[str, float] | None = None,
     htc_scale: float = 1.0,
     g_scale: float = 1.0,
+    solar_irradiance: dict[str, dict[str, float]] | None = None,
 ) -> tuple[dict[str, float], dict[str, float], dict[str, bool], dict[str, float]]:
     """
     Two-zone forward simulation using explicit Euler integration.
@@ -238,7 +251,17 @@ def forward_simulate_two_zone(
             ts      = _ts(d, slot)
             T_out   = weather.outdoor_temp_c.get(ts, T1)
             setpoint = setpoint_sched[slot] if setpoint_sched is not None else dp.t_setpoint
-            Q1_wh   = (internal_gains.get(ts, 0.0) if internal_gains else 0.0) * 1000.0
+            Q1_wh = (internal_gains.get(ts, 0.0) if internal_gains else 0.0) * 1000.0
+            if (solar_irradiance is not None
+                    and dp.window_orientation
+                    and dp.true_solar_g_value > 0.0):
+                orient_irr = solar_irradiance.get(ts, {})
+                solar_gain_kwh = sum(
+                    orient_irr.get(o, 0.0) * dp.window_area_m2 * frac
+                    * dp.true_solar_g_value * 0.5 / 1000.0
+                    for o, frac in dp.window_orientation.items()
+                )
+                Q1_wh += solar_gain_kwh * 1000.0
 
             # Explicit Euler step — use current T1, T2 for both zones
             T1_pred = T1 + dt * (HTC1*(T_out - T1) + G*(T2 - T1)) / C1 + Q1_wh / C1
@@ -276,7 +299,7 @@ def run_simulation(
     lat: float = 53.6,
     lon: float = -1.32,
     pvgis_year: int = 2020,
-    weather_path: str = "data/weather.csv",
+    weather_path: str | None = None,
     pvgis_cache_dir: str = "data",
 ) -> SimulationResult:
     """
@@ -285,6 +308,8 @@ def run_simulation(
     Returns a SimulationResult with all series keyed by 'YYYY-MM-DD HH:MM'
     timestamp strings, one per half-hour slot.
     """
+    if weather_path is None:
+        weather_path = weather_path_for_postcode(dp.postcode)
     weather = load_weather(dates, weather_path)
     occupancy_states = generate_occupancy_states(schedule, dates, seed=seed)
     occupancy_bool = {d: [s in ("home", "sleep") for s in slots]

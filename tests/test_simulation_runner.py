@@ -497,3 +497,62 @@ def test_invalid_schedule_length_raises():
     weather = _make_weather(dates, temp_c=5.0)
     with pytest.raises(ValueError, match="48"):
         forward_simulate(dp, dates, weather)
+
+
+from solar_gains import compute_orientation_irradiance
+
+
+def _make_solar_irradiance(dates, orientations):
+    """Pre-compute solar irradiance for all slots on given dates."""
+    timestamps = [_ts(d, s) for d in dates for s in range(48)]
+    return compute_orientation_irradiance(timestamps, orientations)
+
+
+def test_solar_gains_reduce_winter_gas():
+    """Solar gains through south-facing glazing should reduce gas in a sunny January."""
+    dp = create_dwelling("1970s-semi")
+    dates = [date(2024, 1, 15)]
+    weather = _make_weather(dates, temp_c=5.0)
+
+    indoor_no_solar, gas_no_solar, _ = forward_simulate(dp, dates, weather)
+    solar_irr = _make_solar_irradiance(dates, dp.window_orientation)
+    indoor_solar, gas_solar, _ = forward_simulate(dp, dates, weather, solar_irradiance=solar_irr)
+
+    total_no_solar = sum(gas_no_solar.values())
+    total_solar = sum(gas_solar.values())
+    assert total_solar < total_no_solar, (
+        f"Solar gains should reduce gas: {total_solar:.3f} not < {total_no_solar:.3f}"
+    )
+
+
+def test_solar_gains_negligible_without_glazing_params():
+    """forward_simulate with solar_irradiance but no window_orientation is unchanged."""
+    dp = DwellingParams(
+        total_floor_area_m2=85.0, storey_height_m=2.4,
+        window_area_m2=14.0, door_area_m2=3.6,
+        u_wall=0.60, u_roof=0.35, u_floor=0.70,
+        u_window=2.80, u_door=3.00,
+        y_value=0.15, q50=10.0, kappa=160,
+    )
+    dates = [date(2024, 1, 15)]
+    weather = _make_weather(dates, temp_c=5.0)
+    solar_irr = {"2024-01-15 12:00": {"S": 200.0}}
+
+    indoor_base, gas_base, _ = forward_simulate(dp, dates, weather)
+    indoor_solar, gas_solar, _ = forward_simulate(dp, dates, weather, solar_irradiance=solar_irr)
+
+    assert sum(gas_solar.values()) == pytest.approx(sum(gas_base.values()))
+
+
+def test_solar_gains_zero_in_summer_for_south_facing():
+    """South-facing gains are minimal in summer (high sun grazes vertical glass)."""
+    dp = create_dwelling("1970s-semi")
+    dates = [date(2024, 7, 15)]
+    weather = _make_weather(dates, temp_c=20.0)
+
+    _, gas_no_solar, _ = forward_simulate(dp, dates, weather)
+    solar_irr = _make_solar_irradiance(dates, dp.window_orientation)
+    _, gas_solar, _ = forward_simulate(dp, dates, weather, solar_irradiance=solar_irr)
+
+    for ts in gas_no_solar:
+        assert gas_solar[ts] == pytest.approx(gas_no_solar[ts], abs=1e-6)
