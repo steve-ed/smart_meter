@@ -2,7 +2,7 @@ from __future__ import annotations
 import math
 
 _SOLAR_CONSTANT_W_M2 = 1353.0
-_SHEFFIELD_LAT_RAD = math.radians(53.4)
+_BIRMINGHAM_LAT_RAD = math.radians(52.48)
 _MIN_ELEVATION_RAD = math.radians(3.0)
 
 # Monthly clearness indices (Birmingham/Sheffield approximation).
@@ -35,7 +35,7 @@ def _solar_position(timestamp: str) -> tuple[float, float, int]:
     hour_frac = h + (m + 15) / 60.0  # midpoint of half-hour slot
     doy = _day_of_year(timestamp[:10])
     month = int(timestamp[5:7])
-    lat = _SHEFFIELD_LAT_RAD
+    lat = _BIRMINGHAM_LAT_RAD
     declination = math.radians(23.45 * math.sin(math.radians(360 / 365 * (doy - 81))))
     hour_angle = math.radians(15.0 * (hour_frac - 12.0))
     sin_elev = max(-1.0, min(1.0,
@@ -75,7 +75,7 @@ def surface_irradiance_w_per_m2(
     surface_az = _SURFACE_AZIMUTHS_RAD.get(orientation, 0.0)
     cos_incidence = math.cos(elev) * math.cos(az - surface_az)
     direct = max(0.0, dni * cos_incidence)
-    diffuse = 0.5 * 0.05 * dni * sin_e  # sky-view factor × diffuse fraction for vertical surface
+    diffuse = 0.5 * 0.10 * dni * sin_e  # sky-view factor × diffuse fraction for vertical surface
     return max(0.0, direct + diffuse)
 
 
