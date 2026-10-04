@@ -87,7 +87,7 @@ def compute_orientation_irradiance(
 
     Applies monthly clearness indices to scale clear-sky values for Sheffield.
     Returns {timestamp: {orientation: irradiance_w_m2}}.
-    orientations is {direction: fraction} — only direction keys are computed.
+    orientations keys are the directions to compute; values (fractions) are ignored here.
     """
     result: dict[str, dict[str, float]] = {}
     for ts in timestamps:

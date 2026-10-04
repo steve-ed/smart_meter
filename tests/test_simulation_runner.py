@@ -566,7 +566,6 @@ def test_solar_gains_raise_indoor_temp_in_summer():
 
 def test_run_simulation_applies_solar_gains_for_archetype(tmp_path):
     """run_simulation for a named archetype should produce lower winter gas than without solar."""
-    from datetime import date
     dp_solar = create_dwelling("1970s-semi")
     dp_no_solar = DwellingParams(
         **{k: v for k, v in dp_solar.__dict__.items()
