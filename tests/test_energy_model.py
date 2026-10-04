@@ -250,3 +250,34 @@ def test_validate_tier3_passes_with_occupancy():
     p = create_dwelling("1970s-semi", sensor_occupancy=True)
     ok, missing = validate_sensor_tier(p, 3)
     assert ok, f"Unexpected missing: {missing}"
+
+
+def test_dwelling_params_solar_glazing_defaults():
+    p = DwellingParams(
+        total_floor_area_m2=85.0, storey_height_m=2.4,
+        window_area_m2=14.0, door_area_m2=3.6,
+    )
+    assert p.solar_gain_fraction == 0.0
+    assert p.window_orientation is None
+    assert p.true_solar_g_value == 0.0
+
+
+def test_archetype_1970s_semi_has_solar_fields():
+    p = create_dwelling("1970s-semi")
+    assert p.solar_gain_fraction == pytest.approx(0.20)
+    assert p.window_orientation == {"N": 0.20, "S": 0.45, "E": 0.15, "W": 0.20}
+    assert p.true_solar_g_value == pytest.approx(0.76)
+
+
+def test_archetype_2015_semi_has_solar_fields():
+    p = create_dwelling("2015-semi")
+    assert p.solar_gain_fraction == pytest.approx(0.13)
+    assert p.window_orientation == {"N": 0.10, "S": 0.58, "E": 0.17, "W": 0.15}
+    assert p.true_solar_g_value == pytest.approx(0.50)
+
+
+def test_archetype_window_orientation_fractions_sum_to_one():
+    for name in ("1970s-semi", "1990s-semi", "2005-detached", "pre-1919-terraced", "2015-semi"):
+        p = create_dwelling(name)
+        total = sum(p.window_orientation.values())
+        assert total == pytest.approx(1.0, abs=0.01), f"{name} fractions sum to {total}"
