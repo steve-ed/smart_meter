@@ -75,7 +75,7 @@ def surface_irradiance_w_per_m2(
     surface_az = _SURFACE_AZIMUTHS_RAD.get(orientation, 0.0)
     cos_incidence = math.cos(elev) * math.cos(az - surface_az)
     direct = max(0.0, dni * cos_incidence)
-    diffuse = 0.5 * 0.05 * dni * sin_e
+    diffuse = 0.5 * 0.05 * dni * sin_e  # sky-view factor × diffuse fraction for vertical surface
     return max(0.0, direct + diffuse)
 
 
