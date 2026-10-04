@@ -15,6 +15,7 @@ from home_model import decay_step
 from occupancy_model import DEFAULT_SCHEDULE, OccupancySchedule, generate_occupancy, generate_occupancy_states
 from appliance_model import DEFAULT_APPLIANCES, ApplianceParams, generate_electricity_profile
 from solar_model import generate_solar_profile
+from solar_gains import compute_orientation_irradiance
 
 
 @dataclass
@@ -322,13 +323,20 @@ def run_simulation(
     gains: dict[str, float] | None = None
     if dp.internal_gains_fraction > 0.0:
         gains = {ts: v * dp.internal_gains_fraction for ts, v in elec_flat.items()}
+    solar_irr: dict[str, dict[str, float]] | None = None
+    if dp.window_orientation and dp.true_solar_g_value > 0.0:
+        timestamps = [_ts(d, s) for d in dates for s in range(48)]
+        solar_irr = compute_orientation_irradiance(timestamps, dp.window_orientation)
+
     indoor_temp_z2: dict[str, float] | None = None
     if dp.zone2_floor_area_m2 > 0.0:
         indoor_temp, gas, boiler_on, indoor_temp_z2 = forward_simulate_two_zone(
-            dp, dates, weather, internal_gains=gains
+            dp, dates, weather, internal_gains=gains, solar_irradiance=solar_irr
         )
     else:
-        indoor_temp, gas, boiler_on = forward_simulate(dp, dates, weather, internal_gains=gains)
+        indoor_temp, gas, boiler_on = forward_simulate(
+            dp, dates, weather, internal_gains=gains, solar_irradiance=solar_irr
+        )
     solar_by_date = generate_solar_profile(
         dp, lat=lat, lon=lon, year=pvgis_year, cache_dir=pvgis_cache_dir,
     )

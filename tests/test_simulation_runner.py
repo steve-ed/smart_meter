@@ -397,12 +397,15 @@ def test_internal_gains_fraction_zero_passes_no_gains(tmp_path):
     dates = _winter_week()
     path = _write_weather_csv(tmp_path, dates)
     result = run_simulation(dp, dates, weather_path=path)
-    # With zero gains fraction, gas must equal the no-gains forward_simulate result
+    # With zero gains fraction, gas must equal the no-gains forward_simulate result.
+    # Include solar irradiance to match what run_simulation computes internally.
     weather_obj = WeatherSeries(
         outdoor_temp_c={_ts(d, s): 6.0 for d in dates for s in range(48)},
         wind_speed_ms={_ts(d, s): 3.0 for d in dates for s in range(48)},
     )
-    _, gas_ref, _ = forward_simulate(dp_default, dates, weather_obj, internal_gains=None)
+    solar_irr = _make_solar_irradiance(dates, dp_default.window_orientation)
+    _, gas_ref, _ = forward_simulate(dp_default, dates, weather_obj, internal_gains=None,
+                                     solar_irradiance=solar_irr)
     assert result.gas_kwh == gas_ref
 
 
@@ -559,3 +562,34 @@ def test_solar_gains_raise_indoor_temp_in_summer():
     assert any(
         indoor_solar[ts] > indoor_no_solar[ts] for ts in daytime_slots
     ), "Solar gains should raise indoor temperature during daytime in summer"
+
+
+def test_run_simulation_applies_solar_gains_for_archetype(tmp_path):
+    """run_simulation for a named archetype should produce lower winter gas than without solar."""
+    from datetime import date
+    dp_solar = create_dwelling("1970s-semi")
+    dp_no_solar = DwellingParams(
+        **{k: v for k, v in dp_solar.__dict__.items()
+           if k not in ("window_orientation", "true_solar_g_value", "solar_gain_fraction")},
+        window_orientation=None,
+        true_solar_g_value=0.0,
+        solar_gain_fraction=0.0,
+    )
+    weather_path = tmp_path / "weather.csv"
+    weather_path.write_text(
+        "timestamp,temp_c,wind_speed_ms,is_forecast\n"
+        + "\n".join(
+            f"2024-01-15 {h:02d}:{m:02d},5.0,3.0,0"
+            for h in range(24) for m in (0, 30)
+        )
+    )
+    result_solar = run_simulation(dp_solar, [date(2024, 1, 15)],
+                                  weather_path=str(weather_path))
+    result_no_solar = run_simulation(dp_no_solar, [date(2024, 1, 15)],
+                                     weather_path=str(weather_path))
+
+    gas_solar = sum(result_solar.gas_kwh.values())
+    gas_no_solar = sum(result_no_solar.gas_kwh.values())
+    assert gas_solar < gas_no_solar, (
+        f"Solar archetype should use less gas: {gas_solar:.3f} not < {gas_no_solar:.3f}"
+    )
