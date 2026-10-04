@@ -51,7 +51,8 @@ class DwellingParams:
     # ---- Solar glazing (passive heat gains through windows) ----
     solar_gain_fraction: float = 0.0          # g-value × effective south-facing fraction (flat fallback)
     window_orientation: dict[str, float] | None = None   # {N/S/E/W: fraction of window area}
-    true_solar_g_value: float = 0.0           # actual SHGC — used in ground truth simulation
+    true_solar_g_value: float = 0.0           # actual SHGC — optical maximum
+    solar_g_value_assumed: float = 0.0        # effective g-value used in simulation (discounts vented overheating)
 
     # ---- Battery (optional) ----
     battery_present: bool = False
@@ -169,9 +170,10 @@ ARCHETYPES: dict[str, dict] = {
         "sensor_outdoor_temp": True,
         "sensor_wind_speed":   True,
         "postcode":            "S61 1JD",
-        "solar_gain_fraction": 0.12,
-        "window_orientation":  {"N": 0.35, "S": 0.35, "E": 0.15, "W": 0.15},
-        "true_solar_g_value":  0.76,
+        "solar_gain_fraction":    0.12,
+        "window_orientation":     {"N": 0.35, "S": 0.35, "E": 0.15, "W": 0.15},
+        "true_solar_g_value":     0.76,
+        "solar_g_value_assumed":  0.65,
     },
     "1970s-semi": {
         "archetype_id":        "1970s-semi",
@@ -193,9 +195,10 @@ ARCHETYPES: dict[str, dict] = {
         "sensor_outdoor_temp": True,
         "sensor_wind_speed":   True,
         "postcode":            "S61 1JD",
-        "solar_gain_fraction": 0.20,
-        "window_orientation":  {"N": 0.20, "S": 0.45, "E": 0.15, "W": 0.20},
-        "true_solar_g_value":  0.76,
+        "solar_gain_fraction":    0.20,
+        "window_orientation":     {"N": 0.20, "S": 0.45, "E": 0.15, "W": 0.20},
+        "true_solar_g_value":     0.76,
+        "solar_g_value_assumed":  0.65,
     },
     "1990s-semi": {
         "archetype_id":        "1990s-semi",
@@ -217,9 +220,10 @@ ARCHETYPES: dict[str, dict] = {
         "sensor_outdoor_temp": True,
         "sensor_wind_speed":   True,
         "postcode":            "S61 1JD",
-        "solar_gain_fraction": 0.17,
-        "window_orientation":  {"N": 0.15, "S": 0.50, "E": 0.15, "W": 0.20},
-        "true_solar_g_value":  0.65,
+        "solar_gain_fraction":    0.17,
+        "window_orientation":     {"N": 0.15, "S": 0.50, "E": 0.15, "W": 0.20},
+        "true_solar_g_value":     0.65,
+        "solar_g_value_assumed":  0.55,
     },
     "2005-detached": {
         "archetype_id":        "2005-detached",
@@ -243,9 +247,10 @@ ARCHETYPES: dict[str, dict] = {
         "sensor_indoor_temp":  True,
         "sensor_solar_generation": True,
         "postcode":            "S61 1JD",
-        "solar_gain_fraction": 0.25,
-        "window_orientation":  {"N": 0.10, "S": 0.55, "E": 0.18, "W": 0.17},
-        "true_solar_g_value":  0.60,
+        "solar_gain_fraction":    0.25,
+        "window_orientation":     {"N": 0.10, "S": 0.55, "E": 0.18, "W": 0.17},
+        "true_solar_g_value":     0.60,
+        "solar_g_value_assumed":  0.55,
     },
     "2015-semi": {
         "archetype_id":        "2015-semi",
@@ -267,9 +272,10 @@ ARCHETYPES: dict[str, dict] = {
         "sensor_outdoor_temp": True,
         "sensor_wind_speed":   True,
         "postcode":            "S61 1JD",
-        "solar_gain_fraction": 0.13,
-        "window_orientation":  {"N": 0.10, "S": 0.58, "E": 0.17, "W": 0.15},
-        "true_solar_g_value":  0.50,
+        "solar_gain_fraction":    0.13,
+        "window_orientation":     {"N": 0.10, "S": 0.58, "E": 0.17, "W": 0.15},
+        "true_solar_g_value":     0.50,
+        "solar_g_value_assumed":  0.45,
     },
 }
 

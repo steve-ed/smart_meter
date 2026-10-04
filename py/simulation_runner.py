@@ -168,11 +168,11 @@ def forward_simulate(
             gain_wh = (internal_gains.get(ts, 0.0) if internal_gains else 0.0) * 1000.0
             if (solar_irradiance is not None
                     and dp.window_orientation
-                    and dp.true_solar_g_value > 0.0):
+                    and dp.solar_g_value_assumed > 0.0):
                 orient_irr = solar_irradiance.get(ts, {})
                 solar_gain_kwh = sum(
                     orient_irr.get(o, 0.0) * dp.window_area_m2 * frac
-                    * dp.true_solar_g_value * 0.5 / 1000.0  # 0.5 h per slot; W→kWh
+                    * dp.solar_g_value_assumed * 0.5 / 1000.0  # 0.5 h per slot; W→kWh
                     for o, frac in dp.window_orientation.items()
                 )
                 gain_wh += solar_gain_kwh * 1000.0
@@ -188,6 +188,8 @@ def forward_simulate(
                 boiler_on = True
             else:
                 t_indoor = max(t_after_gains, t_out)
+                if in_heating:
+                    t_indoor = min(t_indoor, dp.t_setpoint)  # occupants vent when above primary setpoint
                 gas_heat_kwh = 0.0
                 boiler_on = False
 
@@ -255,11 +257,11 @@ def forward_simulate_two_zone(
             Q1_wh = (internal_gains.get(ts, 0.0) if internal_gains else 0.0) * 1000.0
             if (solar_irradiance is not None
                     and dp.window_orientation
-                    and dp.true_solar_g_value > 0.0):
+                    and dp.solar_g_value_assumed > 0.0):
                 orient_irr = solar_irradiance.get(ts, {})
                 solar_gain_kwh = sum(
                     orient_irr.get(o, 0.0) * dp.window_area_m2 * frac
-                    * dp.true_solar_g_value * 0.5 / 1000.0  # 0.5 h per slot; W→kWh
+                    * dp.solar_g_value_assumed * 0.5 / 1000.0  # 0.5 h per slot; W→kWh
                     for o, frac in dp.window_orientation.items()
                 )
                 Q1_wh += solar_gain_kwh * 1000.0
@@ -277,7 +279,9 @@ def forward_simulate_two_zone(
                 T1       = min(T1_pred + heat_delivered_wh / C1, setpoint)
                 boiler_on = True
             else:
-                T1        = max(T1_pred, T_out)
+                T1 = max(T1_pred, T_out)
+                if in_heating:
+                    T1 = min(T1, dp.t_setpoint)  # occupants vent when above primary setpoint
                 gas_heat_kwh = 0.0
                 boiler_on = False
 
@@ -324,7 +328,7 @@ def run_simulation(
     if dp.internal_gains_fraction > 0.0:
         gains = {ts: v * dp.internal_gains_fraction for ts, v in elec_flat.items()}
     solar_irr: dict[str, dict[str, float]] | None = None
-    if dp.window_orientation and dp.true_solar_g_value > 0.0:
+    if dp.window_orientation and dp.solar_g_value_assumed > 0.0:
         timestamps = [_ts(d, s) for d in dates for s in range(48)]
         solar_irr = compute_orientation_irradiance(timestamps, dp.window_orientation)
 
