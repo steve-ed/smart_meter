@@ -46,7 +46,7 @@ def build_dwelling(meter_num: int) -> DwellingParams:
         **dataclasses.asdict(base),
         "t_setpoint_schedule":            DEFAULT_SETPOINT_SCHEDULE,
         "boiler_max_kw":                  _boiler_kw(base.total_floor_area_m2),
-        "internal_gains_fraction":        1.0,
+        "internal_gains_fraction":        0.4,
         "zone2_floor_area_m2":            float(z2_area),
         "inter_zone_conductance_w_per_k": 30.0,
         "zone2_t_initial":                18.0,
