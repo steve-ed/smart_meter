@@ -544,15 +544,18 @@ def test_solar_gains_negligible_without_glazing_params():
     assert sum(gas_solar.values()) == pytest.approx(sum(gas_base.values()))
 
 
-def test_solar_gains_zero_in_summer_for_south_facing():
-    """South-facing gains are minimal in summer (high sun grazes vertical glass)."""
+def test_solar_gains_raise_indoor_temp_in_summer():
+    """Solar gains through glazing should raise indoor temperature in summer."""
     dp = create_dwelling("1970s-semi")
     dates = [date(2024, 7, 15)]
-    weather = _make_weather(dates, temp_c=20.0)
+    weather = _make_weather(dates, temp_c=15.0)
 
-    _, gas_no_solar, _ = forward_simulate(dp, dates, weather)
+    indoor_no_solar, _, _ = forward_simulate(dp, dates, weather)
     solar_irr = _make_solar_irradiance(dates, dp.window_orientation)
-    _, gas_solar, _ = forward_simulate(dp, dates, weather, solar_irradiance=solar_irr)
+    indoor_solar, _, _ = forward_simulate(dp, dates, weather, solar_irradiance=solar_irr)
 
-    for ts in gas_no_solar:
-        assert gas_solar[ts] == pytest.approx(gas_no_solar[ts], abs=1e-6)
+    # Daytime slots (when sun is up) should have higher indoor temp with solar
+    daytime_slots = [ts for ts in indoor_solar if "08:00" <= ts[11:] <= "16:00"]
+    assert any(
+        indoor_solar[ts] > indoor_no_solar[ts] for ts in daytime_slots
+    ), "Solar gains should raise indoor temperature during daytime in summer"

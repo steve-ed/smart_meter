@@ -171,7 +171,7 @@ def forward_simulate(
                 orient_irr = solar_irradiance.get(ts, {})
                 solar_gain_kwh = sum(
                     orient_irr.get(o, 0.0) * dp.window_area_m2 * frac
-                    * dp.true_solar_g_value * 0.5 / 1000.0
+                    * dp.true_solar_g_value * 0.5 / 1000.0  # 0.5 h per slot; W→kWh
                     for o, frac in dp.window_orientation.items()
                 )
                 gain_wh += solar_gain_kwh * 1000.0
@@ -258,7 +258,7 @@ def forward_simulate_two_zone(
                 orient_irr = solar_irradiance.get(ts, {})
                 solar_gain_kwh = sum(
                     orient_irr.get(o, 0.0) * dp.window_area_m2 * frac
-                    * dp.true_solar_g_value * 0.5 / 1000.0
+                    * dp.true_solar_g_value * 0.5 / 1000.0  # 0.5 h per slot; W→kWh
                     for o, frac in dp.window_orientation.items()
                 )
                 Q1_wh += solar_gain_kwh * 1000.0
